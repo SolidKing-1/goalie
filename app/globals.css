@@ -1,0 +1,69 @@
+/* app/globals.css */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    /* Brand palette — deep navy + electric lime */
+    --color-surface:    #0f1117;
+    --color-surface-2:  #191d27;
+    --color-surface-3:  #222736;
+    --color-border:     #2a3045;
+    --color-ink:        #e8ecf4;
+    --color-ink-muted:  #7a8299;
+    --color-accent:     #c8f135;   /* electric lime */
+    --color-accent-dim: #9ab829;
+    --color-danger:     #ff5252;
+    --color-warning:    #ffb547;
+    --color-success:    #4ade80;
+    --color-info:       #60a5fa;
+
+    --radius: 0.75rem;
+  }
+
+  * {
+    border-color: var(--color-border);
+  }
+
+  body {
+    background-color: var(--color-surface);
+    color: var(--color-ink);
+  }
+
+  /* Scrollbar */
+  ::-webkit-scrollbar { width: 6px; }
+  ::-webkit-scrollbar-track { background: var(--color-surface-2); }
+  ::-webkit-scrollbar-thumb { background: var(--color-border); border-radius: 999px; }
+}
+
+@layer utilities {
+  .bg-surface   { background-color: var(--color-surface); }
+  .bg-surface-2 { background-color: var(--color-surface-2); }
+  .bg-surface-3 { background-color: var(--color-surface-3); }
+  .text-ink     { color: var(--color-ink); }
+  .text-muted   { color: var(--color-ink-muted); }
+  .text-accent  { color: var(--color-accent); }
+  .border-border { border-color: var(--color-border); }
+  .bg-accent    { background-color: var(--color-accent); }
+
+  /* Card */
+  .card {
+    @apply bg-surface-2 border border-border rounded-xl p-6;
+  }
+
+  /* Animated gradient border */
+  .glow-border {
+    position: relative;
+    border-radius: var(--radius);
+  }
+  .glow-border::before {
+    content: '';
+    position: absolute;
+    inset: -1px;
+    border-radius: calc(var(--radius) + 1px);
+    background: linear-gradient(135deg, var(--color-accent), transparent 60%);
+    z-index: -1;
+    opacity: 0.4;
+  }
+}
