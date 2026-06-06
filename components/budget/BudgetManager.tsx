@@ -53,24 +53,28 @@ export function BudgetManager({ budget, subscriptions, totalMonthly }: Props) {
         <h2 className="text-sm font-medium text-ink">Budget Settings</h2>
 
         <div className="space-y-1.5">
-          <label className="text-xs text-muted">Monthly Limit ($)</label>
+          <label htmlFor="monthly-limit" className="text-xs text-muted">Monthly Limit ($)</label>
           <input
+            id="monthly-limit"
             type="number"
             value={limit}
             onChange={(e) => setLimit(e.target.value)}
             placeholder="100"
+            title="Set your monthly budget limit"
             className="w-full bg-surface-3 border border-border rounded-lg px-3 py-2 text-sm text-ink outline-none focus:border-accent transition-colors"
           />
         </div>
 
         <div className="space-y-1.5">
-          <label className="text-xs text-muted">Alert me at (%)</label>
+          <label htmlFor="alert-at" className="text-xs text-muted">Alert me at (%)</label>
           <div className="flex items-center gap-3">
             <input
+              id="alert-at"
               type="range"
               min="50" max="100" step="5"
               value={alertAt}
               onChange={(e) => setAlertAt(e.target.value)}
+              title="Set the notification threshold as a percentage of your budget"
               className="flex-1 accent-[var(--color-accent)]"
             />
             <span className="text-sm font-mono text-accent w-10 text-right">{alertAt}%</span>

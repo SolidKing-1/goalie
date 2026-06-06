@@ -30,6 +30,8 @@ export function AlertsBanner({ notifications }: { notifications: Notification[] 
         <button
           onClick={() => setDismissed(true)}
           className="text-muted hover:text-ink transition-colors"
+          aria-label="Dismiss alerts"
+          title="Dismiss alerts"
         >
           <X className="w-4 h-4" />
         </button>

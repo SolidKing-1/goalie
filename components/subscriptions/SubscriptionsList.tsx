@@ -70,8 +70,8 @@ export function SubscriptionsList({ subscriptions, goals }: Props) {
                   <td className="px-5 py-3.5">
                     <div className="flex items-center gap-2">
                       <div
-                        className="w-2 h-2 rounded-full"
-                        style={{ background: CATEGORY_COLORS[sub.category] ?? "#6b7280" }}
+                        className="category-indicator"
+                        data-color={CATEGORY_COLORS[sub.category] ?? "#6b7280"}
                       />
                       <span className="font-medium text-ink">{sub.name}</span>
                     </div>
@@ -103,12 +103,14 @@ export function SubscriptionsList({ subscriptions, goals }: Props) {
                       <button
                         onClick={() => setEditTarget(sub)}
                         className="p-1 text-muted hover:text-ink rounded transition-colors"
+                        title="Edit subscription"
                       >
                         <Pencil className="w-3.5 h-3.5" />
                       </button>
                       <button
                         onClick={() => handleDelete(sub.id)}
                         className="p-1 text-muted hover:text-danger rounded transition-colors"
+                        title="Delete subscription"
                       >
                         <Trash2 className="w-3.5 h-3.5" />
                       </button>

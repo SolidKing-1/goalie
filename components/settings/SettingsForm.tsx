@@ -87,8 +87,11 @@ export function SettingsForm({ user }: Props) {
 
         <form onSubmit={saveProfile} className="space-y-4 pt-2 border-t border-border">
           <div className="space-y-1.5">
-            <label className="text-xs font-medium text-muted">Display Name</label>
+            <label htmlFor="display-name" className="text-xs font-medium text-muted">Display Name</label>
             <input
+              id="display-name"
+              title="Display Name"
+              placeholder="Enter display name"
               type="text"
               value={name}
               onChange={(e) => setName(e.target.value)}
@@ -114,8 +117,11 @@ export function SettingsForm({ user }: Props) {
 
         <form onSubmit={changePassword} className="space-y-4">
           <div className="space-y-1.5">
-            <label className="text-xs font-medium text-muted">Current Password</label>
+            <label htmlFor="current-password" className="text-xs font-medium text-muted">Current Password</label>
             <input
+              id="current-password"
+              title="Current Password"
+              placeholder="Enter current password"
               type="password"
               value={currentPassword}
               onChange={(e) => setCurrentPassword(e.target.value)}
@@ -124,8 +130,11 @@ export function SettingsForm({ user }: Props) {
             />
           </div>
           <div className="space-y-1.5">
-            <label className="text-xs font-medium text-muted">New Password</label>
+            <label htmlFor="new-password" className="text-xs font-medium text-muted">New Password</label>
             <input
+              id="new-password"
+              title="New Password"
+              placeholder="Enter new password"
               type="password"
               value={newPassword}
               onChange={(e) => setNewPassword(e.target.value)}

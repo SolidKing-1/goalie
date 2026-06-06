@@ -65,6 +65,7 @@ export function GoalsList({ goals }: { goals: Goal[] }) {
             className="w-full bg-surface-3 border border-border rounded-lg px-3 py-2 text-sm text-ink outline-none focus:border-accent transition-colors"
           />
           <select
+            aria-label="Goal category"
             value={form.category}
             onChange={(e) => setForm((f) => ({ ...f, category: e.target.value as GoalCategory }))}
             className="w-full bg-surface-3 border border-border rounded-lg px-3 py-2 text-sm text-ink outline-none focus:border-accent"
@@ -106,6 +107,8 @@ export function GoalsList({ goals }: { goals: Goal[] }) {
             </div>
             <button
               onClick={() => deleteGoal(goal.id)}
+              title="Delete goal"
+              aria-label="Delete goal"
               className="text-muted hover:text-danger transition-colors flex-shrink-0"
             >
               <Trash2 className="w-3.5 h-3.5" />
