@@ -76,14 +76,23 @@ export async function POST(req: NextRequest) {
     include: { entries: true },
   });
 
-  // Update usageLevel on each subscription
+  // Update usageLevel only on subscriptions owned by the current user
+  const ownedSubIds = new Set(
+    (await prisma.subscription.findMany({
+      where: { id: { in: parsed.data.entries.map((e) => e.subscriptionId) }, userId: session.user.id },
+      select: { id: true },
+    })).map((s) => s.id),
+  );
+
   await Promise.all(
-    parsed.data.entries.map((e) =>
-      prisma.subscription.update({
-        where: { id: e.subscriptionId },
-        data: { usageLevel: e.usageLevel },
-      }),
-    ),
+    parsed.data.entries
+      .filter((e) => ownedSubIds.has(e.subscriptionId))
+      .map((e) =>
+        prisma.subscription.update({
+          where: { id: e.subscriptionId },
+          data: { usageLevel: e.usageLevel },
+        }),
+      ),
   );
 
   // Fire "rarely used" notifications

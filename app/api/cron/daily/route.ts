@@ -1,14 +1,20 @@
 // app/api/cron/daily/route.ts
 // Vercel Cron: schedule = "0 8 * * *" (8am UTC daily)
 import { NextResponse } from "next/server";
+import { timingSafeEqual } from "crypto";
 import { scheduleRenewalReminders, checkBudgetAlerts } from "@/lib/notifications";
 
 export const runtime = "nodejs";
 
+function safeCompare(a: string, b: string): boolean {
+  if (a.length !== b.length) return false;
+  return timingSafeEqual(Buffer.from(a), Buffer.from(b));
+}
+
 export async function GET(req: Request) {
-  // Protect with a secret header
   const authHeader = req.headers.get("authorization");
-  if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
+  const expected = process.env.CRON_SECRET;
+  if (!expected || !authHeader || !safeCompare(authHeader, `Bearer ${expected}`)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 

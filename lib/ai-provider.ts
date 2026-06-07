@@ -141,7 +141,7 @@ function parseAnalysisResponse(
       };
     });
   } catch (error) {
-    console.error("Failed to parse AI response:", responseText, error);
+    console.error("Failed to parse AI response:", error);
     return [];
   }
 }
