@@ -9,14 +9,15 @@ const surveySchema = z.object({
     z.object({
       subscriptionId: z.string(),
       usageLevel: z.enum(["DAILY", "WEEKLY", "RARELY", "NEVER"]),
-    })
+    }),
   ),
 });
 
 /** GET - returns current month survey status + rarely-used subscriptions */
 export async function GET() {
   const session = await auth();
-  if (!session?.user?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (!session?.user?.id)
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const now = new Date();
   const month = now.getMonth() + 1;
@@ -42,11 +43,16 @@ export async function GET() {
 /** POST - submit monthly survey */
 export async function POST(req: NextRequest) {
   const session = await auth();
-  if (!session?.user?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (!session?.user?.id)
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const body = await req.json();
   const parsed = surveySchema.safeParse(body);
-  if (!parsed.success) return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
+  if (!parsed.success)
+    return NextResponse.json(
+      { error: parsed.error.flatten() },
+      { status: 400 },
+    );
 
   const now = new Date();
   const month = now.getMonth() + 1;
@@ -76,21 +82,22 @@ export async function POST(req: NextRequest) {
       prisma.subscription.update({
         where: { id: e.subscriptionId },
         data: { usageLevel: e.usageLevel },
-      })
-    )
+      }),
+    ),
   );
 
   // Fire "rarely used" notifications
   const rarely = parsed.data.entries.filter(
-    (e) => e.usageLevel === "RARELY" || e.usageLevel === "NEVER"
+    (e) => e.usageLevel === "RARELY" || e.usageLevel === "NEVER",
   );
   if (rarely.length > 0) {
     const subs = await prisma.subscription.findMany({
       where: { id: { in: rarely.map((e) => e.subscriptionId) } },
     });
+    const userId = session.user.id!; // Already checked above, safe to assert
     await prisma.notification.createMany({
       data: subs.map((s) => ({
-        userId: session.user.id,
+        userId,
         subscriptionId: s.id,
         type: "RARELY_USED_ALERT" as const,
         title: `Rarely using ${s.name}?`,

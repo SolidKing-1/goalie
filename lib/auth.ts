@@ -3,6 +3,7 @@ import NextAuth from "next-auth";
 import { PrismaAdapter } from "@auth/prisma-adapter";
 import CredentialsProvider from "next-auth/providers/credentials";
 import GoogleProvider from "next-auth/providers/google";
+import GitHubProvider from "next-auth/providers/github";
 import bcrypt from "bcryptjs";
 import { prisma } from "./prisma";
 
@@ -34,13 +35,17 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
 
         const isValid = await bcrypt.compare(
           credentials.password as string,
-          user.password
+          user.password,
         );
 
         if (!isValid) return null;
 
         return { id: user.id, email: user.email, name: user.name };
       },
+    }),
+    GitHubProvider({
+      clientId: process.env.GITHUB_CLIENT_ID!,
+      clientSecret: process.env.GITHUB_CLIENT_SECRET!,
     }),
   ],
   callbacks: {

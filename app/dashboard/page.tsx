@@ -1,12 +1,24 @@
 // app/dashboard/page.tsx
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { toMonthly, formatCurrency, daysUntil, CATEGORY_COLORS } from "@/lib/utils";
+import {
+  toMonthly,
+  formatCurrency,
+  daysUntil,
+  CATEGORY_COLORS,
+} from "@/lib/utils";
 import { StatsCard } from "@/components/dashboard/StatsCard";
 import { SpendingChart } from "@/components/charts/SpendingChart";
+import { MonthlyTrendChart } from "@/components/charts/MonthlyTrendChart";
 import { UpcomingRenewals } from "@/components/dashboard/UpcomingRenewals";
+import { BudgetProgress } from "@/components/dashboard/BudgetProgress";
 import { AlertsBanner } from "@/components/dashboard/AlertsBanner";
-import { DollarSign, CreditCard, AlertTriangle, TrendingDown } from "lucide-react";
+import {
+  DollarSign,
+  CreditCard,
+  AlertTriangle,
+  TrendingDown,
+} from "lucide-react";
 
 export default async function DashboardPage() {
   const session = await auth();
@@ -28,7 +40,7 @@ export default async function DashboardPage() {
 
   const totalMonthly = subscriptions.reduce(
     (sum, s) => sum + toMonthly(s.cost, s.billingCycle as any),
-    0
+    0,
   );
 
   const budgetPercent = budget
@@ -36,11 +48,11 @@ export default async function DashboardPage() {
     : null;
 
   const upcomingRenewals = subscriptions.filter(
-    (s) => daysUntil(s.renewalDate) <= 7
+    (s) => daysUntil(s.renewalDate) <= 7,
   );
 
   const rarelyUsed = subscriptions.filter(
-    (s) => s.usageLevel === "RARELY" || s.usageLevel === "NEVER"
+    (s) => s.usageLevel === "RARELY" || s.usageLevel === "NEVER",
   );
 
   // Category breakdown for chart
@@ -49,18 +61,45 @@ export default async function DashboardPage() {
     const cur = categoryMap.get(s.category) ?? 0;
     categoryMap.set(s.category, cur + toMonthly(s.cost, s.billingCycle as any));
   }
-  const categoryData = Array.from(categoryMap.entries()).map(([name, value]) => ({
-    name,
-    value: Math.round(value * 100) / 100,
-    fill: CATEGORY_COLORS[name] ?? "#6b7280",
-  }));
+  const categoryData = Array.from(categoryMap.entries()).map(
+    ([name, value]) => ({
+      name,
+      value: Math.round(value * 100) / 100,
+      fill: CATEGORY_COLORS[name] ?? "#6b7280",
+    }),
+  );
+
+  // Calculate last 6 months trend
+  const now = new Date();
+  const trendData = [];
+  for (let i = 5; i >= 0; i--) {
+    const monthDate = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    const nextMonth = new Date(now.getFullYear(), now.getMonth() - i + 1, 1);
+
+    const monthSubs = subscriptions.filter((s) => {
+      const subDate = new Date(s.renewalDate);
+      return subDate >= monthDate && subDate < nextMonth;
+    });
+
+    const monthAmount = monthSubs.reduce(
+      (sum, s) => sum + toMonthly(s.cost, s.billingCycle as any),
+      0,
+    );
+
+    trendData.push({
+      month: monthDate.toLocaleString("default", { month: "short" }),
+      amount: Math.round(monthAmount * 100) / 100,
+    });
+  }
 
   return (
     <div className="space-y-8 animate-fade-in">
       {/* Header */}
       <div>
         <h1 className="text-2xl font-semibold text-ink">Dashboard</h1>
-        <p className="text-muted mt-1">Your subscription overview for this month</p>
+        <p className="text-muted mt-1">
+          Your subscription overview for this month
+        </p>
       </div>
 
       {/* Alerts */}
@@ -86,10 +125,13 @@ export default async function DashboardPage() {
           value={budgetPercent !== null ? `${budgetPercent}%` : "—"}
           icon={TrendingDown}
           variant={
-            budgetPercent === null ? "neutral"
-              : budgetPercent >= 100 ? "danger"
-              : budgetPercent >= 90 ? "warning"
-              : "neutral"
+            budgetPercent === null
+              ? "neutral"
+              : budgetPercent >= 100
+                ? "danger"
+                : budgetPercent >= 90
+                  ? "warning"
+                  : "neutral"
           }
         />
         <StatsCard
@@ -100,14 +142,37 @@ export default async function DashboardPage() {
         />
       </div>
 
-      {/* Chart + Renewals */}
-      <div className="grid grid-cols-5 gap-6">
-        <div className="col-span-3 card">
-          <h2 className="text-sm font-medium text-muted mb-4">Spending by Category</h2>
+      {/* Monthly Trend */}
+      <div className="card">
+        <h2 className="text-sm font-medium text-muted mb-4">
+          6-Month Spending Trend
+        </h2>
+        <MonthlyTrendChart data={trendData} limit={budget?.monthlyLimit} />
+      </div>
+
+      {/* Budget + Charts */}
+      <div className="grid grid-cols-3 gap-6">
+        {/* Budget Progress */}
+        <div className="card">
+          <BudgetProgress
+            spent={totalMonthly}
+            limit={budget?.monthlyLimit ?? 0}
+          />
+        </div>
+
+        {/* Category Breakdown */}
+        <div className="col-span-1 card">
+          <h2 className="text-sm font-medium text-muted mb-4">
+            Spending by Category
+          </h2>
           <SpendingChart data={categoryData} />
         </div>
-        <div className="col-span-2 card">
-          <h2 className="text-sm font-medium text-muted mb-4">Upcoming Renewals</h2>
+
+        {/* Upcoming Renewals */}
+        <div className="card">
+          <h2 className="text-sm font-medium text-muted mb-4">
+            Upcoming Renewals
+          </h2>
           <UpcomingRenewals subscriptions={upcomingRenewals as any} />
         </div>
       </div>

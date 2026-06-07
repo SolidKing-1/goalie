@@ -1,7 +1,7 @@
 // components/goals/GoalAlignmentPanel.tsx
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Goal, Subscription, GoalAlignmentResult } from "@/types";
 import { Sparkles, TrendingUp, AlertTriangle, XCircle, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -34,6 +34,26 @@ export function GoalAlignmentPanel({ goals, subscriptions }: Props) {
       setLoading(false);
     }
   }
+
+  useEffect(() => {
+    // inject CSS for dynamic progress widths and colors (generated once)
+    const id = "goal-alignment-styles";
+    if (document.getElementById(id)) return;
+    let css = "";
+    // generate classes for 0-100% widths to avoid inline styles
+    for (let i = 0; i <= 100; i++) {
+      css += `.goal-align-fill-${i} { width: ${i}%; }\n`;
+    }
+    // color classes matching inline colors previously used
+    css += `.goal-align-good { background: #4ade80; }\n`;
+    css += `.goal-align-medium { background: #ffb547; }\n`;
+    css += `.goal-align-bad { background: #ff5252; }\n`;
+
+    const el = document.createElement("style");
+    el.id = id;
+    el.appendChild(document.createTextNode(css));
+    document.head.appendChild(el);
+  }, []);
 
   if (!goals.length || !subscriptions.length) {
     return (
@@ -106,11 +126,11 @@ export function GoalAlignmentPanel({ goals, subscriptions }: Props) {
                   <div className="flex items-center gap-2 mt-2">
                     <div className="flex-1 h-1 bg-surface-2 rounded-full">
                       <div
-                        className="h-full rounded-full"
-                        style={{
-                          width: `${r.alignmentScore}%`,
-                          background: r.alignmentScore >= 70 ? "#4ade80" : r.alignmentScore >= 30 ? "#ffb547" : "#ff5252",
-                        }}
+                        className={cn(
+                          "h-full rounded-full",
+                          `goal-align-fill-${r.alignmentScore}`,
+                          r.alignmentScore >= 70 ? "goal-align-good" : r.alignmentScore >= 30 ? "goal-align-medium" : "goal-align-bad"
+                        )}
                       />
                     </div>
                     <span className="text-xs text-muted w-8 text-right">{r.alignmentScore}</span>

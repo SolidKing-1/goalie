@@ -29,6 +29,11 @@ export function BudgetManager({ budget, subscriptions, totalMonthly }: Props) {
     : percent >= alertThreshold * 100 ? "#ffb547"
     : "#c8f135";
 
+  const barTextColorClass =
+    percent >= 100 ? "text-[#ff5252]"
+    : percent >= alertThreshold * 100 ? "text-[#ffb547]"
+    : "text-[#c8f135]";
+
   async function save() {
     setSaving(true);
     try {
