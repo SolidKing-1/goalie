@@ -6,20 +6,25 @@ import { scheduleRenewalReminders, checkBudgetAlerts } from "@/lib/notifications
 export const runtime = "nodejs";
 
 export async function GET(req: Request) {
-  // Protect with a secret header
-  const authHeader = req.headers.get("authorization");
-  if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  try {
+    // Protect with a secret header
+    const authHeader = req.headers.get("authorization");
+    if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const [reminders, budget] = await Promise.all([
+      scheduleRenewalReminders(),
+      checkBudgetAlerts(),
+    ]);
+
+    return NextResponse.json({
+      success: true,
+      reminders,
+      budgetAlertsChecked: true,
+    });
+  } catch (error) {
+    console.error("GET /api/cron/daily failed:", error);
+    return NextResponse.json({ error: "Cron job failed" }, { status: 500 });
   }
-
-  const [reminders, budget] = await Promise.all([
-    scheduleRenewalReminders(),
-    checkBudgetAlerts(),
-  ]);
-
-  return NextResponse.json({
-    success: true,
-    reminders,
-    budgetAlertsChecked: true,
-  });
 }

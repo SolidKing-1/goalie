@@ -15,12 +15,21 @@ export function RarelyUsedList({ subscriptions }: { subscriptions: Subscription[
   );
 
   async function cancel(id: string) {
-    await fetch(`/api/subscriptions/${id}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ status: "CANCELLED" }),
-    });
-    router.refresh();
+    try {
+      const res = await fetch(`/api/subscriptions/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: "CANCELLED" }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => null);
+        alert(data?.error ?? "Failed to cancel subscription");
+        return;
+      }
+      router.refresh();
+    } catch {
+      alert("Network error. Please try again.");
+    }
   }
 
   return (
