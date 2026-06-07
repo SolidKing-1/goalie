@@ -1,53 +1,55 @@
 // app/api/subscriptions/[id]/route.ts
 import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
+import { requireAuth, parseBody, requireOwnership } from "@/lib/api-utils";
 import { prisma } from "@/lib/prisma";
 import { z } from "zod";
+import {
+  SUBSCRIPTION_CATEGORIES,
+  BILLING_CYCLES,
+  SUBSCRIPTION_STATUSES,
+  USAGE_LEVELS,
+} from "@/lib/constants";
 
 const updateSchema = z.object({
   name: z.string().min(1).optional(),
   description: z.string().optional(),
   cost: z.number().positive().optional(),
-  billingCycle: z.enum(["WEEKLY", "MONTHLY", "QUARTERLY", "YEARLY"]).optional(),
+  billingCycle: z.enum(BILLING_CYCLES).optional(),
   renewalDate: z.string().datetime().optional(),
-  category: z.enum([
-    "STREAMING", "SOFTWARE", "FITNESS", "EDUCATION",
-    "FOOD", "FINANCE", "GAMING", "PRODUCTIVITY", "NEWS", "OTHER",
-  ]).optional(),
-  status: z.enum(["ACTIVE", "CANCELLED", "PAUSED"]).optional(),
-  usageLevel: z.enum(["DAILY", "WEEKLY", "RARELY", "NEVER"]).optional(),
+  category: z.enum(SUBSCRIPTION_CATEGORIES).optional(),
+  status: z.enum(SUBSCRIPTION_STATUSES).optional(),
+  usageLevel: z.enum(USAGE_LEVELS).optional(),
   goalId: z.string().nullable().optional(),
   notifyDaysBefore: z.number().int().min(1).max(30).optional(),
 });
 
-async function getOwned(id: string, userId: string) {
-  return prisma.subscription.findFirst({ where: { id, userId } });
-}
-
 export async function GET(_: NextRequest, { params }: { params: { id: string } }) {
-  const session = await auth();
-  if (!session?.user?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const authResult = await requireAuth();
+  if ("error" in authResult) return authResult.error;
 
-  const sub = await getOwned(params.id, session.user.id);
-  if (!sub) return NextResponse.json({ error: "Not found" }, { status: 404 });
+  const ownerResult = await requireOwnership(() =>
+    prisma.subscription.findFirst({ where: { id: params.id, userId: authResult.userId } }),
+  );
+  if ("error" in ownerResult) return ownerResult.error;
 
-  return NextResponse.json(sub);
+  return NextResponse.json(ownerResult.record);
 }
 
 export async function PATCH(req: NextRequest, { params }: { params: { id: string } }) {
-  const session = await auth();
-  if (!session?.user?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const authResult = await requireAuth();
+  if ("error" in authResult) return authResult.error;
 
-  const existing = await getOwned(params.id, session.user.id);
-  if (!existing) return NextResponse.json({ error: "Not found" }, { status: 404 });
+  const ownerResult = await requireOwnership(() =>
+    prisma.subscription.findFirst({ where: { id: params.id, userId: authResult.userId } }),
+  );
+  if ("error" in ownerResult) return ownerResult.error;
 
-  const body = await req.json();
-  const parsed = updateSchema.safeParse(body);
-  if (!parsed.success) return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
+  const bodyResult = await parseBody(req, updateSchema);
+  if ("error" in bodyResult) return bodyResult.error;
 
   const updated = await prisma.subscription.update({
     where: { id: params.id },
-    data: parsed.data,
+    data: bodyResult.data,
     include: { goal: true },
   });
 
@@ -55,11 +57,13 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
 }
 
 export async function DELETE(_: NextRequest, { params }: { params: { id: string } }) {
-  const session = await auth();
-  if (!session?.user?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const authResult = await requireAuth();
+  if ("error" in authResult) return authResult.error;
 
-  const existing = await getOwned(params.id, session.user.id);
-  if (!existing) return NextResponse.json({ error: "Not found" }, { status: 404 });
+  const ownerResult = await requireOwnership(() =>
+    prisma.subscription.findFirst({ where: { id: params.id, userId: authResult.userId } }),
+  );
+  if ("error" in ownerResult) return ownerResult.error;
 
   await prisma.subscription.delete({ where: { id: params.id } });
   return new NextResponse(null, { status: 204 });

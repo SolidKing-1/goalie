@@ -1,20 +1,18 @@
 // app/api/subscriptions/route.ts
 import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
+import { requireAuth, parseBody } from "@/lib/api-utils";
 import { prisma } from "@/lib/prisma";
 import { z } from "zod";
+import { SUBSCRIPTION_CATEGORIES, BILLING_CYCLES } from "@/lib/constants";
 
 const createSchema = z.object({
   name: z.string().min(1),
   description: z.string().optional(),
   cost: z.number().positive(),
   currency: z.string().default("USD"),
-  billingCycle: z.enum(["WEEKLY", "MONTHLY", "QUARTERLY", "YEARLY"]),
+  billingCycle: z.enum(BILLING_CYCLES),
   renewalDate: z.string().datetime(),
-  category: z.enum([
-    "STREAMING", "SOFTWARE", "FITNESS", "EDUCATION",
-    "FOOD", "FINANCE", "GAMING", "PRODUCTIVITY", "NEWS", "OTHER",
-  ]),
+  category: z.enum(SUBSCRIPTION_CATEGORIES),
   logoUrl: z.string().url().optional(),
   websiteUrl: z.string().url().optional(),
   notifyDaysBefore: z.number().int().min(1).max(30).default(3),
@@ -22,13 +20,11 @@ const createSchema = z.object({
 });
 
 export async function GET() {
-  const session = await auth();
-  if (!session?.user?.id) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  const authResult = await requireAuth();
+  if ("error" in authResult) return authResult.error;
 
   const subscriptions = await prisma.subscription.findMany({
-    where: { userId: session.user.id },
+    where: { userId: authResult.userId },
     include: { goal: true },
     orderBy: { renewalDate: "asc" },
   });
@@ -37,20 +33,14 @@ export async function GET() {
 }
 
 export async function POST(req: NextRequest) {
-  const session = await auth();
-  if (!session?.user?.id) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  const authResult = await requireAuth();
+  if ("error" in authResult) return authResult.error;
 
-  const body = await req.json();
-  const parsed = createSchema.safeParse(body);
-
-  if (!parsed.success) {
-    return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
-  }
+  const bodyResult = await parseBody(req, createSchema);
+  if ("error" in bodyResult) return bodyResult.error;
 
   const subscription = await prisma.subscription.create({
-    data: { ...parsed.data, userId: session.user.id },
+    data: { ...bodyResult.data, userId: authResult.userId },
     include: { goal: true },
   });
 

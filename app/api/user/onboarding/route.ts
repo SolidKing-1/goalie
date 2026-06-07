@@ -1,6 +1,6 @@
 // app/api/user/onboarding/route.ts
 import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
+import { requireAuth, parseBody } from "@/lib/api-utils";
 import { prisma } from "@/lib/prisma";
 import { z } from "zod";
 
@@ -10,38 +10,30 @@ const schema = z.object({
 });
 
 export async function PATCH(req: NextRequest) {
-  const session = await auth();
-  if (!session?.user?.id) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  const authResult = await requireAuth();
+  if ("error" in authResult) return authResult.error;
 
-  const body = await req.json();
-  const parsed = schema.safeParse(body);
-  if (!parsed.success) {
-    return NextResponse.json(
-      { error: parsed.error.flatten() },
-      { status: 400 },
-    );
-  }
+  const bodyResult = await parseBody(req, schema);
+  if ("error" in bodyResult) return bodyResult.error;
 
   // Mark user as onboarded
   const user = await prisma.user.update({
-    where: { id: session.user.id },
+    where: { id: authResult.userId },
     data: { onboardingCompleted: true },
   });
 
   // Create budget if it doesn't exist
   const budget = await prisma.budget.upsert({
-    where: { userId: session.user.id },
+    where: { userId: authResult.userId },
     create: {
-      userId: session.user.id,
-      currency: parsed.data.currency,
-      monthlyLimit: parsed.data.monthlyBudget,
+      userId: authResult.userId,
+      currency: bodyResult.data.currency,
+      monthlyLimit: bodyResult.data.monthlyBudget,
       alertAt: 0.9, // 90% threshold
     },
     update: {
-      currency: parsed.data.currency,
-      monthlyLimit: parsed.data.monthlyBudget,
+      currency: bodyResult.data.currency,
+      monthlyLimit: bodyResult.data.monthlyBudget,
     },
   });
 

@@ -1,23 +1,23 @@
 // app/api/goals/route.ts
 import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
+import { requireAuth, parseBody } from "@/lib/api-utils";
 import { prisma } from "@/lib/prisma";
-import { analyzeGoalAlignment } from "@/lib/llm";
 import { z } from "zod";
+import { GOAL_CATEGORIES } from "@/lib/constants";
 
 const createSchema = z.object({
   title: z.string().min(1),
   description: z.string().optional(),
-  category: z.enum(["CAREER", "EDUCATION", "HEALTH", "FINANCE", "LIFESTYLE", "OTHER"]),
+  category: z.enum(GOAL_CATEGORIES),
   targetDate: z.string().datetime().optional(),
 });
 
 export async function GET() {
-  const session = await auth();
-  if (!session?.user?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const authResult = await requireAuth();
+  if ("error" in authResult) return authResult.error;
 
   const goals = await prisma.goal.findMany({
-    where: { userId: session.user.id },
+    where: { userId: authResult.userId },
     include: { subscriptions: true },
     orderBy: { createdAt: "desc" },
   });
@@ -26,15 +26,14 @@ export async function GET() {
 }
 
 export async function POST(req: NextRequest) {
-  const session = await auth();
-  if (!session?.user?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const authResult = await requireAuth();
+  if ("error" in authResult) return authResult.error;
 
-  const body = await req.json();
-  const parsed = createSchema.safeParse(body);
-  if (!parsed.success) return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
+  const bodyResult = await parseBody(req, createSchema);
+  if ("error" in bodyResult) return bodyResult.error;
 
   const goal = await prisma.goal.create({
-    data: { ...parsed.data, userId: session.user.id },
+    data: { ...bodyResult.data, userId: authResult.userId },
   });
 
   return NextResponse.json(goal, { status: 201 });

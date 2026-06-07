@@ -1,6 +1,6 @@
 // app/api/user/profile/route.ts
 import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
+import { requireAuth, parseBody } from "@/lib/api-utils";
 import { prisma } from "@/lib/prisma";
 import { z } from "zod";
 
@@ -9,16 +9,15 @@ const schema = z.object({
 });
 
 export async function PATCH(req: NextRequest) {
-  const session = await auth();
-  if (!session?.user?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const authResult = await requireAuth();
+  if ("error" in authResult) return authResult.error;
 
-  const body = await req.json();
-  const parsed = schema.safeParse(body);
-  if (!parsed.success) return NextResponse.json({ error: "Invalid input" }, { status: 400 });
+  const bodyResult = await parseBody(req, schema);
+  if ("error" in bodyResult) return bodyResult.error;
 
   const user = await prisma.user.update({
-    where: { id: session.user.id },
-    data: { name: parsed.data.name },
+    where: { id: authResult.userId },
+    data: { name: bodyResult.data.name },
     select: { id: true, name: true, email: true },
   });
 

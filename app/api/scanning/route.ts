@@ -1,23 +1,24 @@
 // app/api/scanning/route.ts
 import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
+import { requireAuth, parseBody } from "@/lib/api-utils";
 import { prisma } from "@/lib/prisma";
 import { z } from "zod";
+import { USAGE_LEVELS } from "@/lib/constants";
+import { filterRarelyUsed } from "@/lib/calculations";
 
 const surveySchema = z.object({
   entries: z.array(
     z.object({
       subscriptionId: z.string(),
-      usageLevel: z.enum(["DAILY", "WEEKLY", "RARELY", "NEVER"]),
+      usageLevel: z.enum(USAGE_LEVELS),
     }),
   ),
 });
 
 /** GET - returns current month survey status + rarely-used subscriptions */
 export async function GET() {
-  const session = await auth();
-  if (!session?.user?.id)
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const authResult = await requireAuth();
+  if ("error" in authResult) return authResult.error;
 
   const now = new Date();
   const month = now.getMonth() + 1;
@@ -25,12 +26,12 @@ export async function GET() {
 
   const [survey, rarelyUsed] = await Promise.all([
     prisma.survey.findUnique({
-      where: { userId_month_year: { userId: session.user.id, month, year } },
+      where: { userId_month_year: { userId: authResult.userId, month, year } },
       include: { entries: { include: { subscription: true } } },
     }),
     prisma.subscription.findMany({
       where: {
-        userId: session.user.id,
+        userId: authResult.userId,
         status: "ACTIVE",
         usageLevel: { in: ["RARELY", "NEVER"] },
       },
@@ -42,17 +43,11 @@ export async function GET() {
 
 /** POST - submit monthly survey */
 export async function POST(req: NextRequest) {
-  const session = await auth();
-  if (!session?.user?.id)
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const authResult = await requireAuth();
+  if ("error" in authResult) return authResult.error;
 
-  const body = await req.json();
-  const parsed = surveySchema.safeParse(body);
-  if (!parsed.success)
-    return NextResponse.json(
-      { error: parsed.error.flatten() },
-      { status: 400 },
-    );
+  const bodyResult = await parseBody(req, surveySchema);
+  if ("error" in bodyResult) return bodyResult.error;
 
   const now = new Date();
   const month = now.getMonth() + 1;
@@ -60,13 +55,13 @@ export async function POST(req: NextRequest) {
 
   // Upsert the survey
   const survey = await prisma.survey.upsert({
-    where: { userId_month_year: { userId: session.user.id, month, year } },
+    where: { userId_month_year: { userId: authResult.userId, month, year } },
     create: {
-      userId: session.user.id,
+      userId: authResult.userId,
       month,
       year,
       entries: {
-        create: parsed.data.entries.map((e) => ({
+        create: bodyResult.data.entries.map((e) => ({
           subscriptionId: e.subscriptionId,
           usageLevel: e.usageLevel,
         })),
@@ -78,7 +73,7 @@ export async function POST(req: NextRequest) {
 
   // Update usageLevel on each subscription
   await Promise.all(
-    parsed.data.entries.map((e) =>
+    bodyResult.data.entries.map((e) =>
       prisma.subscription.update({
         where: { id: e.subscriptionId },
         data: { usageLevel: e.usageLevel },
@@ -87,17 +82,16 @@ export async function POST(req: NextRequest) {
   );
 
   // Fire "rarely used" notifications
-  const rarely = parsed.data.entries.filter(
-    (e) => e.usageLevel === "RARELY" || e.usageLevel === "NEVER",
+  const rarely = filterRarelyUsed(
+    bodyResult.data.entries.map((e) => ({ ...e, usageLevel: e.usageLevel as any })),
   );
   if (rarely.length > 0) {
     const subs = await prisma.subscription.findMany({
       where: { id: { in: rarely.map((e) => e.subscriptionId) } },
     });
-    const userId = session.user.id!; // Already checked above, safe to assert
     await prisma.notification.createMany({
       data: subs.map((s) => ({
-        userId,
+        userId: authResult.userId,
         subscriptionId: s.id,
         type: "RARELY_USED_ALERT" as const,
         title: `Rarely using ${s.name}?`,
