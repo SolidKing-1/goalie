@@ -22,14 +22,23 @@ export function GoalAlignmentPanel({ goals, subscriptions }: Props) {
   const [results, setResults] = useState<GoalAlignmentResult[]>([]);
   const [loading, setLoading] = useState(false);
   const [ran, setRan] = useState(false);
+  const [error, setError] = useState("");
 
   async function runAnalysis() {
     setLoading(true);
+    setError("");
     try {
       const res = await fetch("/api/goals/alignment");
+      if (!res.ok) {
+        const data = await res.json().catch(() => null);
+        setError(data?.error ?? "Failed to analyze alignment");
+        return;
+      }
       const data = await res.json();
       setResults(data);
       setRan(true);
+    } catch {
+      setError("Network error. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -83,7 +92,11 @@ export function GoalAlignmentPanel({ goals, subscriptions }: Props) {
         </button>
       </div>
 
-      {!ran && !loading && (
+      {error && (
+        <p className="text-xs text-danger bg-danger/10 px-3 py-2 rounded-lg">{error}</p>
+      )}
+
+      {!ran && !loading && !error && (
         <div className="text-center py-8 text-muted text-sm">
           Click Analyze to get AI-powered recommendations
         </div>
