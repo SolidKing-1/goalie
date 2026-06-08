@@ -44,10 +44,14 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
     const parsed = updateSchema.safeParse(body);
     if (!parsed.success) return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
 
-    const updated = await prisma.goal.update({
-      where: { id: params.id },
-      data: parsed.data,
-    });
+  const body = await req.json();
+  const parsed = updateSchema.safeParse(body);
+  if (!parsed.success) return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
+
+  const updated = await prisma.goal.update({
+    where: { id: params.id },
+    data: parsed.data,
+  });
 
     return NextResponse.json(updated);
   } catch (error) {

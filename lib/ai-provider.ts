@@ -128,6 +128,7 @@ function parseAnalysisResponse(
   try {
     parsed = JSON.parse(responseText);
   } catch (error) {
+    // Kept from master: Throws an explicit error so your API route can handle the failure properly
     throw new Error(
       `Failed to parse AI response as JSON: ${error instanceof Error ? error.message : error}`,
     );
