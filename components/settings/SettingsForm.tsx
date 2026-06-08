@@ -36,7 +36,12 @@ export function SettingsForm({ user }: Props) {
       if (res.ok) {
         setMessage("Profile updated successfully");
         router.refresh();
+      } else {
+        const data = await res.json().catch(() => null);
+        setMessage(data?.error ?? "Failed to update profile");
       }
+    } catch {
+      setMessage("Network error. Please try again.");
     } finally {
       setSaving(false);
     }
@@ -52,14 +57,16 @@ export function SettingsForm({ user }: Props) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ currentPassword, newPassword }),
       });
-      const data = await res.json();
+      const data = await res.json().catch(() => null);
       if (res.ok) {
         setMessage("Password changed successfully");
         setCurrentPassword("");
         setNewPassword("");
       } else {
-        setMessage(data.error ?? "Failed to change password");
+        setMessage(data?.error ?? "Failed to change password");
       }
+    } catch {
+      setMessage("Network error. Please try again.");
     } finally {
       setSaving(false);
     }

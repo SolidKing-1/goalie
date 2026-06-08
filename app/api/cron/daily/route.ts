@@ -12,20 +12,27 @@ function safeCompare(a: string, b: string): boolean {
 }
 
 export async function GET(req: Request) {
-  const authHeader = req.headers.get("authorization");
-  const expected = process.env.CRON_SECRET;
-  if (!expected || !authHeader || !safeCompare(authHeader, `Bearer ${expected}`)) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  try {
+    // Secure authorization check using timingSafeEqual
+    const authHeader = req.headers.get("authorization");
+    const expected = process.env.CRON_SECRET;
+    
+    if (!expected || !authHeader || !safeCompare(authHeader, `Bearer ${expected}`)) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const [reminders, budget] = await Promise.all([
+      scheduleRenewalReminders(),
+      checkBudgetAlerts(),
+    ]);
+
+    return NextResponse.json({
+      success: true,
+      reminders,
+      budgetAlertsChecked: true,
+    });
+  } catch (error) {
+    console.error("GET /api/cron/daily failed:", error);
+    return NextResponse.json({ error: "Cron job failed" }, { status: 500 });
   }
-
-  const [reminders, budget] = await Promise.all([
-    scheduleRenewalReminders(),
-    checkBudgetAlerts(),
-  ]);
-
-  return NextResponse.json({
-    success: true,
-    reminders,
-    budgetAlertsChecked: true,
-  });
 }

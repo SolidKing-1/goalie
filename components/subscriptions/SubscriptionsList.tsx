@@ -29,8 +29,17 @@ export function SubscriptionsList({ subscriptions, goals }: Props) {
 
   async function handleDelete(id: string) {
     if (!confirm("Delete this subscription?")) return;
-    await fetch(`/api/subscriptions/${id}`, { method: "DELETE" });
-    router.refresh();
+    try {
+      const res = await fetch(`/api/subscriptions/${id}`, { method: "DELETE" });
+      if (!res.ok) {
+        const data = await res.json().catch(() => null);
+        alert(data?.error ?? "Failed to delete subscription");
+        return;
+      }
+      router.refresh();
+    } catch {
+      alert("Network error. Please try again.");
+    }
   }
 
   return (

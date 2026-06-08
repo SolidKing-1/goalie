@@ -13,26 +13,36 @@ const updateSchema = z.object({
 });
 
 export async function DELETE(_: NextRequest, { params }: { params: { id: string } }) {
-  const session = await auth();
-  if (!session?.user?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  try {
+    const session = await auth();
+    if (!session?.user?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const goal = await prisma.goal.findFirst({
-    where: { id: params.id, userId: session.user.id },
-  });
-  if (!goal) return NextResponse.json({ error: "Not found" }, { status: 404 });
+    const goal = await prisma.goal.findFirst({
+      where: { id: params.id, userId: session.user.id },
+    });
+    if (!goal) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
-  await prisma.goal.delete({ where: { id: params.id } });
-  return new NextResponse(null, { status: 204 });
+    await prisma.goal.delete({ where: { id: params.id } });
+    return new NextResponse(null, { status: 204 });
+  } catch (error) {
+    console.error("DELETE /api/goals/[id] failed:", error);
+    return NextResponse.json({ error: "Failed to delete goal" }, { status: 500 });
+  }
 }
 
 export async function PATCH(req: NextRequest, { params }: { params: { id: string } }) {
-  const session = await auth();
-  if (!session?.user?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  try {
+    const session = await auth();
+    if (!session?.user?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const goal = await prisma.goal.findFirst({
-    where: { id: params.id, userId: session.user.id },
-  });
-  if (!goal) return NextResponse.json({ error: "Not found" }, { status: 404 });
+    const goal = await prisma.goal.findFirst({
+      where: { id: params.id, userId: session.user.id },
+    });
+    if (!goal) return NextResponse.json({ error: "Not found" }, { status: 404 });
+
+    const body = await req.json();
+    const parsed = updateSchema.safeParse(body);
+    if (!parsed.success) return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
 
   const body = await req.json();
   const parsed = updateSchema.safeParse(body);
@@ -43,5 +53,9 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
     data: parsed.data,
   });
 
-  return NextResponse.json(updated);
+    return NextResponse.json(updated);
+  } catch (error) {
+    console.error("PATCH /api/goals/[id] failed:", error);
+    return NextResponse.json({ error: "Failed to update goal" }, { status: 500 });
+  }
 }

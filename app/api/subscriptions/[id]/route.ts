@@ -25,42 +25,57 @@ async function getOwned(id: string, userId: string) {
 }
 
 export async function GET(_: NextRequest, { params }: { params: { id: string } }) {
-  const session = await auth();
-  if (!session?.user?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  try {
+    const session = await auth();
+    if (!session?.user?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const sub = await getOwned(params.id, session.user.id);
-  if (!sub) return NextResponse.json({ error: "Not found" }, { status: 404 });
+    const sub = await getOwned(params.id, session.user.id);
+    if (!sub) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
-  return NextResponse.json(sub);
+    return NextResponse.json(sub);
+  } catch (error) {
+    console.error("GET /api/subscriptions/[id] failed:", error);
+    return NextResponse.json({ error: "Failed to fetch subscription" }, { status: 500 });
+  }
 }
 
 export async function PATCH(req: NextRequest, { params }: { params: { id: string } }) {
-  const session = await auth();
-  if (!session?.user?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  try {
+    const session = await auth();
+    if (!session?.user?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const existing = await getOwned(params.id, session.user.id);
-  if (!existing) return NextResponse.json({ error: "Not found" }, { status: 404 });
+    const existing = await getOwned(params.id, session.user.id);
+    if (!existing) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
-  const body = await req.json();
-  const parsed = updateSchema.safeParse(body);
-  if (!parsed.success) return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
+    const body = await req.json();
+    const parsed = updateSchema.safeParse(body);
+    if (!parsed.success) return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
 
-  const updated = await prisma.subscription.update({
-    where: { id: params.id },
-    data: parsed.data,
-    include: { goal: true },
-  });
+    const updated = await prisma.subscription.update({
+      where: { id: params.id },
+      data: parsed.data,
+      include: { goal: true },
+    });
 
-  return NextResponse.json(updated);
+    return NextResponse.json(updated);
+  } catch (error) {
+    console.error("PATCH /api/subscriptions/[id] failed:", error);
+    return NextResponse.json({ error: "Failed to update subscription" }, { status: 500 });
+  }
 }
 
 export async function DELETE(_: NextRequest, { params }: { params: { id: string } }) {
-  const session = await auth();
-  if (!session?.user?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  try {
+    const session = await auth();
+    if (!session?.user?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const existing = await getOwned(params.id, session.user.id);
-  if (!existing) return NextResponse.json({ error: "Not found" }, { status: 404 });
+    const existing = await getOwned(params.id, session.user.id);
+    if (!existing) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
-  await prisma.subscription.delete({ where: { id: params.id } });
-  return new NextResponse(null, { status: 204 });
+    await prisma.subscription.delete({ where: { id: params.id } });
+    return new NextResponse(null, { status: 204 });
+  } catch (error) {
+    console.error("DELETE /api/subscriptions/[id] failed:", error);
+    return NextResponse.json({ error: "Failed to delete subscription" }, { status: 500 });
+  }
 }
