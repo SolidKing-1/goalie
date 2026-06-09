@@ -1,6 +1,6 @@
 // app/api/goals/[id]/route.ts
 import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
+import { requireAuth, requireOwnership } from "@/lib/api-utils";
 import { prisma } from "@/lib/prisma";
 import { z } from "zod";
 
@@ -14,13 +14,13 @@ const updateSchema = z.object({
 
 export async function DELETE(_: NextRequest, { params }: { params: { id: string } }) {
   try {
-    const session = await auth();
-    if (!session?.user?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    const authResult = await requireAuth();
+    if ("error" in authResult) return authResult.error;
 
-    const goal = await prisma.goal.findFirst({
-      where: { id: params.id, userId: session.user.id },
-    });
-    if (!goal) return NextResponse.json({ error: "Not found" }, { status: 404 });
+    const ownerResult = await requireOwnership(() =>
+      prisma.goal.findFirst({ where: { id: params.id, userId: authResult.userId } }),
+    );
+    if ("error" in ownerResult) return ownerResult.error;
 
     await prisma.goal.delete({ where: { id: params.id } });
     return new NextResponse(null, { status: 204 });
@@ -32,26 +32,22 @@ export async function DELETE(_: NextRequest, { params }: { params: { id: string 
 
 export async function PATCH(req: NextRequest, { params }: { params: { id: string } }) {
   try {
-    const session = await auth();
-    if (!session?.user?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    const authResult = await requireAuth();
+    if ("error" in authResult) return authResult.error;
 
-    const goal = await prisma.goal.findFirst({
-      where: { id: params.id, userId: session.user.id },
-    });
-    if (!goal) return NextResponse.json({ error: "Not found" }, { status: 404 });
+    const ownerResult = await requireOwnership(() =>
+      prisma.goal.findFirst({ where: { id: params.id, userId: authResult.userId } }),
+    );
+    if ("error" in ownerResult) return ownerResult.error;
 
     const body = await req.json();
     const parsed = updateSchema.safeParse(body);
     if (!parsed.success) return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
 
-  const body = await req.json();
-  const parsed = updateSchema.safeParse(body);
-  if (!parsed.success) return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
-
-  const updated = await prisma.goal.update({
-    where: { id: params.id },
-    data: parsed.data,
-  });
+    const updated = await prisma.goal.update({
+      where: { id: params.id },
+      data: parsed.data,
+    });
 
     return NextResponse.json(updated);
   } catch (error) {

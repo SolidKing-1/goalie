@@ -2,11 +2,12 @@
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import {
-  toMonthly,
   formatCurrency,
   daysUntil,
   CATEGORY_COLORS,
+  toMonthly,
 } from "@/lib/utils";
+import { calculateTotalMonthly, filterRarelyUsed } from "@/lib/calculations";
 import { StatsCard } from "@/components/dashboard/StatsCard";
 import { SpendingChart } from "@/components/charts/SpendingChart";
 import { MonthlyTrendChart } from "@/components/charts/MonthlyTrendChart";
@@ -38,10 +39,7 @@ export default async function DashboardPage() {
     }),
   ]);
 
-  const totalMonthly = subscriptions.reduce(
-    (sum, s) => sum + toMonthly(s.cost, s.billingCycle as any),
-    0,
-  );
+  const totalMonthly = calculateTotalMonthly(subscriptions);
 
   const budgetPercent = budget
     ? Math.round((totalMonthly / budget.monthlyLimit) * 100)
@@ -51,9 +49,7 @@ export default async function DashboardPage() {
     (s) => daysUntil(s.renewalDate) <= 7,
   );
 
-  const rarelyUsed = subscriptions.filter(
-    (s) => s.usageLevel === "RARELY" || s.usageLevel === "NEVER",
-  );
+  const rarelyUsed = filterRarelyUsed(subscriptions);
 
   // Category breakdown for chart
   const categoryMap = new Map<string, number>();

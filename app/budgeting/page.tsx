@@ -1,7 +1,7 @@
 // app/budgeting/page.tsx
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { toMonthly, formatCurrency } from "@/lib/utils";
+import { calculateTotalMonthly } from "@/lib/calculations";
 import { BudgetManager } from "@/components/budget/BudgetManager";
 
 export default async function BudgetingPage() {
@@ -16,10 +16,7 @@ export default async function BudgetingPage() {
     }),
   ]);
 
-  const totalMonthly = subscriptions.reduce(
-    (sum, s) => sum + toMonthly(s.cost, s.billingCycle as any),
-    0
-  );
+  const totalMonthly = calculateTotalMonthly(subscriptions);
 
   return (
     <div className="space-y-6 animate-fade-in">

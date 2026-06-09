@@ -1,6 +1,6 @@
 // app/api/notifications/[id]/route.ts
 import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
+import { requireAuth, parseBody, requireOwnership } from "@/lib/api-utils";
 import { prisma } from "@/lib/prisma";
 import { z } from "zod";
 
@@ -8,37 +8,25 @@ const schema = z.object({
   isRead: z.boolean().optional(),
 });
 
-async function getOwned(id: string, userId: string) {
-  return prisma.notification.findFirst({ where: { id, userId } });
-}
-
 export async function PATCH(
   req: NextRequest,
   { params }: { params: { id: string } },
 ) {
   try {
-    const session = await auth();
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const authResult = await requireAuth();
+    if ("error" in authResult) return authResult.error;
 
-    const existing = await getOwned(params.id, session.user.id);
-    if (!existing) {
-      return NextResponse.json({ error: "Not found" }, { status: 404 });
-    }
+    const ownerResult = await requireOwnership(() =>
+      prisma.notification.findFirst({ where: { id: params.id, userId: authResult.userId } }),
+    );
+    if ("error" in ownerResult) return ownerResult.error;
 
-    const body = await req.json();
-    const parsed = schema.safeParse(body);
-    if (!parsed.success) {
-      return NextResponse.json(
-        { error: parsed.error.flatten() },
-        { status: 400 },
-      );
-    }
+    const bodyResult = await parseBody(req, schema);
+    if ("error" in bodyResult) return bodyResult.error;
 
     const updated = await prisma.notification.update({
       where: { id: params.id },
-      data: parsed.data,
+      data: bodyResult.data,
     });
 
     return NextResponse.json(updated);

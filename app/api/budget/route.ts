@@ -1,9 +1,9 @@
 // app/api/budget/route.ts
 import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
+import { requireAuth, parseBody } from "@/lib/api-utils";
 import { prisma } from "@/lib/prisma";
 import { z } from "zod";
-import { toMonthly } from "@/lib/utils";
+import { calculateTotalMonthly } from "@/lib/calculations";
 
 const schema = z.object({
   monthlyLimit: z.number().positive(),
@@ -13,18 +13,15 @@ const schema = z.object({
 
 export async function GET() {
   try {
-    const session = await auth();
-    if (!session?.user?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    const authResult = await requireAuth();
+    if ("error" in authResult) return authResult.error;
 
     const [budget, subscriptions] = await Promise.all([
-      prisma.budget.findUnique({ where: { userId: session.user.id } }),
-      prisma.subscription.findMany({ where: { userId: session.user.id, status: "ACTIVE" } }),
+      prisma.budget.findUnique({ where: { userId: authResult.userId } }),
+      prisma.subscription.findMany({ where: { userId: authResult.userId, status: "ACTIVE" } }),
     ]);
 
-    const totalMonthly = subscriptions.reduce(
-      (sum, s) => sum + toMonthly(s.cost, s.billingCycle as any),
-      0
-    );
+    const totalMonthly = calculateTotalMonthly(subscriptions);
 
     return NextResponse.json({ budget, totalMonthly, subscriptions });
   } catch (error) {
@@ -35,17 +32,16 @@ export async function GET() {
 
 export async function PUT(req: NextRequest) {
   try {
-    const session = await auth();
-    if (!session?.user?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    const authResult = await requireAuth();
+    if ("error" in authResult) return authResult.error;
 
-    const body = await req.json();
-    const parsed = schema.safeParse(body);
-    if (!parsed.success) return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
+    const bodyResult = await parseBody(req, schema);
+    if ("error" in bodyResult) return bodyResult.error;
 
     const budget = await prisma.budget.upsert({
-      where: { userId: session.user.id },
-      update: parsed.data,
-      create: { userId: session.user.id, ...parsed.data },
+      where: { userId: authResult.userId },
+      update: bodyResult.data,
+      create: { userId: authResult.userId, ...bodyResult.data },
     });
 
     return NextResponse.json(budget);

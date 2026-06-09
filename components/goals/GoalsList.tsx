@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { Goal, GoalCategory } from "@/types";
 import { Plus, Target, Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { GOAL_CATEGORIES } from "@/lib/constants";
 
 const CATEGORY_ICONS: Record<GoalCategory, string> = {
   CAREER: "💼", EDUCATION: "📚", HEALTH: "💪",
@@ -89,7 +90,7 @@ export function GoalsList({ goals }: { goals: Goal[] }) {
             onChange={(e) => setForm((f) => ({ ...f, category: e.target.value as GoalCategory }))}
             className="w-full bg-surface-3 border border-border rounded-lg px-3 py-2 text-sm text-ink outline-none focus:border-accent"
           >
-            {(["CAREER","EDUCATION","HEALTH","FINANCE","LIFESTYLE","OTHER"] as GoalCategory[]).map((c) => (
+            {GOAL_CATEGORIES.map((c) => (
               <option key={c} value={c}>{CATEGORY_ICONS[c]} {c.charAt(0) + c.slice(1).toLowerCase()}</option>
             ))}
           </select>

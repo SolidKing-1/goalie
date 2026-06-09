@@ -5,20 +5,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { X } from "lucide-react";
 import { Goal, Subscription } from "@/types";
-
-const CATEGORIES = [
-  "STREAMING",
-  "SOFTWARE",
-  "FITNESS",
-  "EDUCATION",
-  "FOOD",
-  "FINANCE",
-  "GAMING",
-  "PRODUCTIVITY",
-  "NEWS",
-  "OTHER",
-];
-const CYCLES = ["WEEKLY", "MONTHLY", "QUARTERLY", "YEARLY"];
+import { SUBSCRIPTION_CATEGORIES, BILLING_CYCLES } from "@/lib/constants";
 
 interface Props {
   mode: "create" | "edit";
@@ -146,7 +133,7 @@ export function SubscriptionForm({
                 aria-label="Billing Cycle"
                 title="Billing Cycle"
               >
-                {CYCLES.map((c) => (
+                {BILLING_CYCLES.map((c) => (
                   <option key={c} value={c}>
                     {c.charAt(0) + c.slice(1).toLowerCase()}
                   </option>
@@ -182,7 +169,7 @@ export function SubscriptionForm({
                 aria-label="Category"
                 title="Category"
               >
-                {CATEGORIES.map((c) => (
+                {SUBSCRIPTION_CATEGORIES.map((c) => (
                   <option key={c} value={c}>
                     {c.charAt(0) + c.slice(1).toLowerCase()}
                   </option>
