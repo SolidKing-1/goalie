@@ -11,27 +11,32 @@ const schema = z.object({
 });
 
 export async function PATCH(req: NextRequest) {
-  const authResult = await requireAuth();
-  if ("error" in authResult) return authResult.error;
+  try {
+    const authResult = await requireAuth();
+    if ("error" in authResult) return authResult.error;
 
-  const bodyResult = await parseBody(req, schema);
-  if ("error" in bodyResult) return bodyResult.error;
+    const bodyResult = await parseBody(req, schema);
+    if ("error" in bodyResult) return bodyResult.error;
 
-  const user = await prisma.user.findUnique({ where: { id: authResult.userId } });
-  if (!user?.password) {
-    return NextResponse.json({ error: "No password set (OAuth account)" }, { status: 400 });
+    const user = await prisma.user.findUnique({ where: { id: authResult.userId } });
+    if (!user?.password) {
+      return NextResponse.json({ error: "No password set (OAuth account)" }, { status: 400 });
+    }
+
+    const valid = await bcrypt.compare(bodyResult.data.currentPassword, user.password);
+    if (!valid) {
+      return NextResponse.json({ error: "Current password is incorrect" }, { status: 400 });
+    }
+
+    const hashed = await bcrypt.hash(bodyResult.data.newPassword, 12);
+    await prisma.user.update({
+      where: { id: authResult.userId },
+      data: { password: hashed },
+    });
+
+    return NextResponse.json({ success: true });
+  } catch (error) {
+    console.error("PATCH /api/user/password failed:", error);
+    return NextResponse.json({ error: "Failed to change password" }, { status: 500 });
   }
-
-  const valid = await bcrypt.compare(bodyResult.data.currentPassword, user.password);
-  if (!valid) {
-    return NextResponse.json({ error: "Current password is incorrect" }, { status: 400 });
-  }
-
-  const hashed = await bcrypt.hash(bodyResult.data.newPassword, 12);
-  await prisma.user.update({
-    where: { id: authResult.userId },
-    data: { password: hashed },
-  });
-
-  return NextResponse.json({ success: true });
 }

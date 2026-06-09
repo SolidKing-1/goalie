@@ -9,17 +9,22 @@ const schema = z.object({
 });
 
 export async function PATCH(req: NextRequest) {
-  const authResult = await requireAuth();
-  if ("error" in authResult) return authResult.error;
+  try {
+    const authResult = await requireAuth();
+    if ("error" in authResult) return authResult.error;
 
-  const bodyResult = await parseBody(req, schema);
-  if ("error" in bodyResult) return bodyResult.error;
+    const bodyResult = await parseBody(req, schema);
+    if ("error" in bodyResult) return bodyResult.error;
 
-  const user = await prisma.user.update({
-    where: { id: authResult.userId },
-    data: { name: bodyResult.data.name },
-    select: { id: true, name: true, email: true },
-  });
+    const user = await prisma.user.update({
+      where: { id: authResult.userId },
+      data: { name: bodyResult.data.name },
+      select: { id: true, name: true, email: true },
+    });
 
-  return NextResponse.json(user);
+    return NextResponse.json(user);
+  } catch (error) {
+    console.error("PATCH /api/user/profile failed:", error);
+    return NextResponse.json({ error: "Failed to update profile" }, { status: 500 });
+  }
 }

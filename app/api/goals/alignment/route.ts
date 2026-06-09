@@ -5,19 +5,25 @@ import { prisma } from "@/lib/prisma";
 import { analyzeGoalAlignment } from "@/lib/llm";
 
 export async function GET() {
-  const authResult = await requireAuth();
-  if ("error" in authResult) return authResult.error;
+  try {
+    const authResult = await requireAuth();
+    if ("error" in authResult) return authResult.error;
 
-  const [subscriptions, goals] = await Promise.all([
-    prisma.subscription.findMany({
-      where: { userId: authResult.userId, status: "ACTIVE" },
-    }),
-    prisma.goal.findMany({
-      where: { userId: authResult.userId, status: "ACTIVE" },
-    }),
-  ]);
+    const [subscriptions, goals] = await Promise.all([
+      prisma.subscription.findMany({
+        where: { userId: authResult.userId, status: "ACTIVE" },
+      }),
+      prisma.goal.findMany({
+        where: { userId: authResult.userId, status: "ACTIVE" },
+      }),
+    ]);
 
-  const results = await analyzeGoalAlignment(subscriptions as any, goals as any);
+    // Cast to our types for the LLM helper
+    const results = await analyzeGoalAlignment(subscriptions as any, goals as any);
 
-  return NextResponse.json(results);
+    return NextResponse.json(results);
+  } catch (error) {
+    console.error("GET /api/goals/alignment failed:", error);
+    return NextResponse.json({ error: "Failed to analyze goal alignment" }, { status: 500 });
+  }
 }

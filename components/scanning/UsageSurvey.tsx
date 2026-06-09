@@ -27,13 +27,15 @@ export function UsageSurvey({ subscriptions, existingSurvey }: Props) {
     }, {}) ?? {}
   );
   const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
 
   const allAnswered = subscriptions.every((s) => usage[s.id]);
 
   async function submit() {
     setSaving(true);
+    setError("");
     try {
-      await fetch("/api/scanning", {
+      const res = await fetch("/api/scanning", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -43,7 +45,14 @@ export function UsageSurvey({ subscriptions, existingSurvey }: Props) {
           })),
         }),
       });
+      if (!res.ok) {
+        const data = await res.json().catch(() => null);
+        setError(data?.error ?? "Failed to submit survey");
+        return;
+      }
       router.refresh();
+    } catch {
+      setError("Network error. Please try again.");
     } finally {
       setSaving(false);
     }
@@ -83,6 +92,10 @@ export function UsageSurvey({ subscriptions, existingSurvey }: Props) {
           </div>
         </div>
       ))}
+
+      {error && (
+        <p className="text-xs text-danger bg-danger/10 px-3 py-2 rounded-lg">{error}</p>
+      )}
 
       <button
         onClick={submit}

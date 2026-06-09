@@ -12,21 +12,26 @@ export async function PATCH(
   req: NextRequest,
   { params }: { params: { id: string } },
 ) {
-  const authResult = await requireAuth();
-  if ("error" in authResult) return authResult.error;
+  try {
+    const authResult = await requireAuth();
+    if ("error" in authResult) return authResult.error;
 
-  const ownerResult = await requireOwnership(() =>
-    prisma.notification.findFirst({ where: { id: params.id, userId: authResult.userId } }),
-  );
-  if ("error" in ownerResult) return ownerResult.error;
+    const ownerResult = await requireOwnership(() =>
+      prisma.notification.findFirst({ where: { id: params.id, userId: authResult.userId } }),
+    );
+    if ("error" in ownerResult) return ownerResult.error;
 
-  const bodyResult = await parseBody(req, schema);
-  if ("error" in bodyResult) return bodyResult.error;
+    const bodyResult = await parseBody(req, schema);
+    if ("error" in bodyResult) return bodyResult.error;
 
-  const updated = await prisma.notification.update({
-    where: { id: params.id },
-    data: bodyResult.data,
-  });
+    const updated = await prisma.notification.update({
+      where: { id: params.id },
+      data: bodyResult.data,
+    });
 
-  return NextResponse.json(updated);
+    return NextResponse.json(updated);
+  } catch (error) {
+    console.error("PATCH /api/notifications/[id] failed:", error);
+    return NextResponse.json({ error: "Failed to update notification" }, { status: 500 });
+  }
 }

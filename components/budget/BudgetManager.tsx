@@ -34,10 +34,13 @@ export function BudgetManager({ budget, subscriptions, totalMonthly }: Props) {
     : percent >= alertThreshold * 100 ? "text-[#ffb547]"
     : "text-[#c8f135]";
 
+  const [error, setError] = useState("");
+
   async function save() {
     setSaving(true);
+    setError("");
     try {
-      await fetch("/api/budget", {
+      const res = await fetch("/api/budget", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -45,7 +48,14 @@ export function BudgetManager({ budget, subscriptions, totalMonthly }: Props) {
           alertAt: parseInt(alertAt) / 100,
         }),
       });
+      if (!res.ok) {
+        const data = await res.json().catch(() => null);
+        setError(data?.error ?? "Failed to save budget");
+        return;
+      }
       router.refresh();
+    } catch {
+      setError("Network error. Please try again.");
     } finally {
       setSaving(false);
     }
@@ -85,6 +95,10 @@ export function BudgetManager({ budget, subscriptions, totalMonthly }: Props) {
             <span className="text-sm font-mono text-accent w-10 text-right">{alertAt}%</span>
           </div>
         </div>
+
+        {error && (
+          <p className="text-xs text-danger bg-danger/10 px-3 py-2 rounded-lg">{error}</p>
+        )}
 
         <button
           onClick={save}

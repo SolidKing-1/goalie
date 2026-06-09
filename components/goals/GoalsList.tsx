@@ -19,18 +19,28 @@ export function GoalsList({ goals }: { goals: Goal[] }) {
   const [form, setForm] = useState({ title: "", description: "", category: "CAREER" as GoalCategory });
   const [saving, setSaving] = useState(false);
 
+  const [error, setError] = useState("");
+
   async function createGoal(e: React.FormEvent) {
     e.preventDefault();
     setSaving(true);
+    setError("");
     try {
-      await fetch("/api/goals", {
+      const res = await fetch("/api/goals", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(form),
       });
+      if (!res.ok) {
+        const data = await res.json().catch(() => null);
+        setError(data?.error ?? "Failed to create goal");
+        return;
+      }
       router.refresh();
       setShowForm(false);
       setForm({ title: "", description: "", category: "CAREER" });
+    } catch {
+      setError("Network error. Please try again.");
     } finally {
       setSaving(false);
     }
@@ -38,8 +48,17 @@ export function GoalsList({ goals }: { goals: Goal[] }) {
 
   async function deleteGoal(id: string) {
     if (!confirm("Delete this goal?")) return;
-    await fetch(`/api/goals/${id}`, { method: "DELETE" });
-    router.refresh();
+    try {
+      const res = await fetch(`/api/goals/${id}`, { method: "DELETE" });
+      if (!res.ok) {
+        const data = await res.json().catch(() => null);
+        alert(data?.error ?? "Failed to delete goal");
+        return;
+      }
+      router.refresh();
+    } catch {
+      alert("Network error. Please try again.");
+    }
   }
 
   return (
@@ -82,6 +101,9 @@ export function GoalsList({ goals }: { goals: Goal[] }) {
             rows={2}
             className="w-full bg-surface-3 border border-border rounded-lg px-3 py-2 text-sm text-ink outline-none focus:border-accent transition-colors resize-none"
           />
+          {error && (
+            <p className="text-xs text-danger bg-danger/10 px-3 py-2 rounded-lg">{typeof error === "object" ? JSON.stringify(error) : error}</p>
+          )}
           <div className="flex gap-2">
             <button type="button" onClick={() => setShowForm(false)} className="flex-1 py-2 rounded-lg border border-border text-sm text-muted hover:text-ink transition-all">Cancel</button>
             <button type="submit" disabled={saving} className="flex-1 py-2 rounded-lg bg-accent text-surface text-sm font-medium hover:bg-accent-dim transition-colors disabled:opacity-50">

@@ -24,47 +24,63 @@ const updateSchema = z.object({
 });
 
 export async function GET(_: NextRequest, { params }: { params: { id: string } }) {
-  const authResult = await requireAuth();
-  if ("error" in authResult) return authResult.error;
+  try {
+    const authResult = await requireAuth();
+    if ("error" in authResult) return authResult.error;
 
-  const ownerResult = await requireOwnership(() =>
-    prisma.subscription.findFirst({ where: { id: params.id, userId: authResult.userId } }),
-  );
-  if ("error" in ownerResult) return ownerResult.error;
+    const ownerResult = await requireOwnership(() =>
+      prisma.subscription.findFirst({ where: { id: params.id, userId: authResult.userId } }),
+    );
+    if ("error" in ownerResult) return ownerResult.error;
 
-  return NextResponse.json(ownerResult.record);
+    // Devin's helper passes the fetched record back directly so we don't query twice!
+    return NextResponse.json(ownerResult.record);
+  } catch (error) {
+    console.error("GET /api/subscriptions/[id] failed:", error);
+    return NextResponse.json({ error: "Failed to fetch subscription" }, { status: 500 });
+  }
 }
 
 export async function PATCH(req: NextRequest, { params }: { params: { id: string } }) {
-  const authResult = await requireAuth();
-  if ("error" in authResult) return authResult.error;
+  try {
+    const authResult = await requireAuth();
+    if ("error" in authResult) return authResult.error;
 
-  const ownerResult = await requireOwnership(() =>
-    prisma.subscription.findFirst({ where: { id: params.id, userId: authResult.userId } }),
-  );
-  if ("error" in ownerResult) return ownerResult.error;
+    const ownerResult = await requireOwnership(() =>
+      prisma.subscription.findFirst({ where: { id: params.id, userId: authResult.userId } }),
+    );
+    if ("error" in ownerResult) return ownerResult.error;
 
-  const bodyResult = await parseBody(req, updateSchema);
-  if ("error" in bodyResult) return bodyResult.error;
+    const bodyResult = await parseBody(req, updateSchema);
+    if ("error" in bodyResult) return bodyResult.error;
 
-  const updated = await prisma.subscription.update({
-    where: { id: params.id },
-    data: bodyResult.data,
-    include: { goal: true },
-  });
+    const updated = await prisma.subscription.update({
+      where: { id: params.id },
+      data: bodyResult.data,
+      include: { goal: true },
+    });
 
-  return NextResponse.json(updated);
+    return NextResponse.json(updated);
+  } catch (error) {
+    console.error("PATCH /api/subscriptions/[id] failed:", error);
+    return NextResponse.json({ error: "Failed to update subscription" }, { status: 500 });
+  }
 }
 
 export async function DELETE(_: NextRequest, { params }: { params: { id: string } }) {
-  const authResult = await requireAuth();
-  if ("error" in authResult) return authResult.error;
+  try {
+    const authResult = await requireAuth();
+    if ("error" in authResult) return authResult.error;
 
-  const ownerResult = await requireOwnership(() =>
-    prisma.subscription.findFirst({ where: { id: params.id, userId: authResult.userId } }),
-  );
-  if ("error" in ownerResult) return ownerResult.error;
+    const ownerResult = await requireOwnership(() =>
+      prisma.subscription.findFirst({ where: { id: params.id, userId: authResult.userId } }),
+    );
+    if ("error" in ownerResult) return ownerResult.error;
 
-  await prisma.subscription.delete({ where: { id: params.id } });
-  return new NextResponse(null, { status: 204 });
+    await prisma.subscription.delete({ where: { id: params.id } });
+    return new NextResponse(null, { status: 204 });
+  } catch (error) {
+    console.error("DELETE /api/subscriptions/[id] failed:", error);
+    return NextResponse.json({ error: "Failed to delete subscription" }, { status: 500 });
+  }
 }

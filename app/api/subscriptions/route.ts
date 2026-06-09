@@ -20,29 +20,39 @@ const createSchema = z.object({
 });
 
 export async function GET() {
-  const authResult = await requireAuth();
-  if ("error" in authResult) return authResult.error;
+  try {
+    const authResult = await requireAuth();
+    if ("error" in authResult) return authResult.error;
 
-  const subscriptions = await prisma.subscription.findMany({
-    where: { userId: authResult.userId },
-    include: { goal: true },
-    orderBy: { renewalDate: "asc" },
-  });
+    const subscriptions = await prisma.subscription.findMany({
+      where: { userId: authResult.userId },
+      include: { goal: true },
+      orderBy: { renewalDate: "asc" },
+    });
 
-  return NextResponse.json(subscriptions);
+    return NextResponse.json(subscriptions);
+  } catch (error) {
+    console.error("GET /api/subscriptions failed:", error);
+    return NextResponse.json({ error: "Failed to fetch subscriptions" }, { status: 500 });
+  }
 }
 
 export async function POST(req: NextRequest) {
-  const authResult = await requireAuth();
-  if ("error" in authResult) return authResult.error;
+  try {
+    const authResult = await requireAuth();
+    if ("error" in authResult) return authResult.error;
 
-  const bodyResult = await parseBody(req, createSchema);
-  if ("error" in bodyResult) return bodyResult.error;
+    const bodyResult = await parseBody(req, createSchema);
+    if ("error" in bodyResult) return bodyResult.error;
 
-  const subscription = await prisma.subscription.create({
-    data: { ...bodyResult.data, userId: authResult.userId },
-    include: { goal: true },
-  });
+    const subscription = await prisma.subscription.create({
+      data: { ...bodyResult.data, userId: authResult.userId },
+      include: { goal: true },
+    });
 
-  return NextResponse.json(subscription, { status: 201 });
+    return NextResponse.json(subscription, { status: 201 });
+  } catch (error) {
+    console.error("POST /api/subscriptions failed:", error);
+    return NextResponse.json({ error: "Failed to create subscription" }, { status: 500 });
+  }
 }

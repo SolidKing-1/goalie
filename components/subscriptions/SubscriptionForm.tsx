@@ -39,9 +39,12 @@ export function SubscriptionForm({
     setForm((f) => ({ ...f, [field]: value }));
   }
 
+  const [error, setError] = useState("");
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setLoading(true);
+    setError("");
     try {
       const payload = {
         ...form,
@@ -57,14 +60,22 @@ export function SubscriptionForm({
           : `/api/subscriptions/${subscription!.id}`;
       const method = mode === "create" ? "POST" : "PATCH";
 
-      await fetch(url, {
+      const res = await fetch(url, {
         method,
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
 
+      if (!res.ok) {
+        const data = await res.json().catch(() => null);
+        setError(data?.error ?? `Failed to ${mode} subscription`);
+        return;
+      }
+
       router.refresh();
       onClose();
+    } catch {
+      setError("Network error. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -204,6 +215,10 @@ export function SubscriptionForm({
                 ))}
               </select>
             </Field>
+          )}
+
+          {error && (
+            <p className="text-xs text-danger bg-danger/10 px-3 py-2 rounded-lg">{typeof error === "object" ? JSON.stringify(error) : error}</p>
           )}
 
           <div className="flex gap-3 pt-2">

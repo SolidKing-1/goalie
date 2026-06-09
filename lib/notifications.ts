@@ -14,40 +14,49 @@ export async function scheduleRenewalReminders() {
   });
 
   const created: string[] = [];
+  const errors: { subscriptionId: string; error: string }[] = [];
 
   for (const sub of subscriptions) {
-    const days = daysUntil(sub.renewalDate);
+    try {
+      const days = daysUntil(sub.renewalDate);
 
-    if (days <= sub.notifyDaysBefore && days >= 0) {
-      // Avoid duplicate notifications
-      const existing = await prisma.notification.findFirst({
-        where: {
-          subscriptionId: sub.id,
-          type: "RENEWAL_REMINDER",
-          sentAt: null,
-          scheduledFor: {
-            gte: new Date(new Date().setHours(0, 0, 0, 0)),
-          },
-        },
-      });
-
-      if (!existing) {
-        await prisma.notification.create({
-          data: {
-            userId: sub.userId,
+      if (days <= sub.notifyDaysBefore && days >= 0) {
+        // Avoid duplicate notifications
+        const existing = await prisma.notification.findFirst({
+          where: {
             subscriptionId: sub.id,
             type: "RENEWAL_REMINDER",
-            title: `${sub.name} renews ${days === 0 ? "today" : `in ${days} day${days === 1 ? "" : "s"}`}`,
-            message: `Your ${sub.name} subscription will renew for $${sub.cost}. Still worth it?`,
-            scheduledFor: new Date(),
+            sentAt: null,
+            scheduledFor: {
+              gte: new Date(new Date().setHours(0, 0, 0, 0)),
+            },
           },
         });
-        created.push(sub.id);
+
+        if (!existing) {
+          await prisma.notification.create({
+            data: {
+              userId: sub.userId,
+              subscriptionId: sub.id,
+              type: "RENEWAL_REMINDER",
+              title: `${sub.name} renews ${days === 0 ? "today" : `in ${days} day${days === 1 ? "" : "s"}`}`,
+              message: `Your ${sub.name} subscription will renew for $${sub.cost}. Still worth it?`,
+              scheduledFor: new Date(),
+            },
+          });
+          created.push(sub.id);
+        }
       }
+    } catch (error) {
+      console.error(`Failed to process reminder for subscription ${sub.id}:`, error);
+      errors.push({
+        subscriptionId: sub.id,
+        error: error instanceof Error ? error.message : String(error),
+      });
     }
   }
 
-  return { scheduled: created.length };
+  return { scheduled: created.length, errors };
 }
 
 /**
@@ -64,34 +73,46 @@ export async function checkBudgetAlerts() {
     },
   });
 
-  for (const budget of budgets) {
-    const { toMonthly } = await import("./utils");
-    const spent = budget.user.subscriptions.reduce(
-      (sum, s) => sum + toMonthly(s.cost, s.billingCycle as any),
-      0
-    );
-    const ratio = spent / budget.monthlyLimit;
+  const errors: { userId: string; error: string }[] = [];
 
-    if (ratio >= 1) {
-      await prisma.notification.create({
-        data: {
-          userId: budget.userId,
-          type: "BUDGET_EXCEEDED",
-          title: "Budget Exceeded!",
-          message: `You've spent $${spent.toFixed(2)} of your $${budget.monthlyLimit} monthly budget.`,
-          scheduledFor: new Date(),
-        },
-      });
-    } else if (ratio >= budget.alertAt) {
-      await prisma.notification.create({
-        data: {
-          userId: budget.userId,
-          type: "BUDGET_WARNING",
-          title: "Budget Warning",
-          message: `You're at ${Math.round(ratio * 100)}% of your monthly budget. $${(budget.monthlyLimit - spent).toFixed(2)} remaining.`,
-          scheduledFor: new Date(),
-        },
+  for (const budget of budgets) {
+    try {
+      const { toMonthly } = await import("./utils");
+      const spent = budget.user.subscriptions.reduce(
+        (sum, s) => sum + toMonthly(s.cost, s.billingCycle as any),
+        0
+      );
+      const ratio = spent / budget.monthlyLimit;
+
+      if (ratio >= 1) {
+        await prisma.notification.create({
+          data: {
+            userId: budget.userId,
+            type: "BUDGET_EXCEEDED",
+            title: "Budget Exceeded!",
+            message: `You've spent $${spent.toFixed(2)} of your $${budget.monthlyLimit} monthly budget.`,
+            scheduledFor: new Date(),
+          },
+        });
+      } else if (ratio >= budget.alertAt) {
+        await prisma.notification.create({
+          data: {
+            userId: budget.userId,
+            type: "BUDGET_WARNING",
+            title: "Budget Warning",
+            message: `You're at ${Math.round(ratio * 100)}% of your monthly budget. $${(budget.monthlyLimit - spent).toFixed(2)} remaining.`,
+            scheduledFor: new Date(),
+          },
+        });
+      }
+    } catch (error) {
+      console.error(`Failed to process budget alert for user ${budget.userId}:`, error);
+      errors.push({
+        userId: budget.userId,
+        error: error instanceof Error ? error.message : String(error),
       });
     }
   }
+
+  return { checked: budgets.length, errors };
 }

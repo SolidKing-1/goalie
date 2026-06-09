@@ -124,24 +124,28 @@ function parseAnalysisResponse(
   subscriptions: Subscription[],
   goals: Goal[],
 ): GoalAlignmentResult[] {
+  let parsed;
   try {
-    let parsed = JSON.parse(responseText);
-    const results: GoalAlignmentResult[] = Array.isArray(parsed)
-      ? parsed
-      : (parsed.results ?? []);
-
-    // Enrich with subscription/goal names
-    return results.map((r) => {
-      const sub = subscriptions.find((s) => s.id === r.subscriptionId);
-      const goal = goals.find((g) => g.id === r.goalId);
-      return {
-        ...r,
-        subscriptionName: sub?.name ?? "Unknown",
-        goalTitle: goal?.title,
-      };
-    });
+    parsed = JSON.parse(responseText);
   } catch (error) {
-    console.error("Failed to parse AI response:", responseText, error);
-    return [];
+    // Kept from master: Throws an explicit error so your API route can handle the failure properly
+    throw new Error(
+      `Failed to parse AI response as JSON: ${error instanceof Error ? error.message : error}`,
+    );
   }
+
+  const results: GoalAlignmentResult[] = Array.isArray(parsed)
+    ? parsed
+    : (parsed.results ?? []);
+
+  // Enrich with subscription/goal names
+  return results.map((r) => {
+    const sub = subscriptions.find((s) => s.id === r.subscriptionId);
+    const goal = goals.find((g) => g.id === r.goalId);
+    return {
+      ...r,
+      subscriptionName: sub?.name ?? "Unknown",
+      goalTitle: goal?.title,
+    };
+  });
 }

@@ -17,20 +17,39 @@ export function NotificationsBell({ notifications, unreadCount }: Props) {
   const [open, setOpen] = useState(false);
 
   async function markAsRead(id: string) {
-    await fetch(`/api/notifications/${id}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ isRead: true }),
-    });
-    router.refresh();
+    try {
+      const res = await fetch(`/api/notifications/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ isRead: true }),
+      });
+      if (!res.ok) {
+        console.error("Failed to mark notification as read:", id);
+        return;
+      }
+      router.refresh();
+    } catch (err) {
+      console.error("Failed to mark notification as read:", err);
+    }
   }
 
   async function markAllAsRead() {
-    await Promise.all(
-      notifications
-        .filter((n) => !n.isRead)
-        .map((n) => markAsRead(n.id))
-    );
+    const unread = notifications.filter((n) => !n.isRead);
+    if (!unread.length) return;
+    try {
+      const res = await fetch("/api/notifications", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ids: unread.map((n) => n.id) }),
+      });
+      if (!res.ok) {
+        console.error("Failed to mark all notifications as read");
+        return;
+      }
+      router.refresh();
+    } catch (err) {
+      console.error("Failed to mark all notifications as read:", err);
+    }
   }
 
   return (
