@@ -55,7 +55,14 @@ async function analyzeWithGemini(
   }
 
   const genAI = new GoogleGenerativeAI(apiKey);
-  const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+
+  // Updated model string to use the active gemini-2.5-flash model
+  const model = genAI.getGenerativeModel({
+    model: "gemini-2.5-flash",
+    generationConfig: {
+      responseMimeType: "application/json",
+    },
+  });
 
   const prompt = buildAnalysisPrompt(subscriptions, goals);
 
@@ -102,7 +109,7 @@ ${goals.map((g) => `- [${g.id}] ${g.title} (${g.category}): ${g.description ?? "
 USER SUBSCRIPTIONS:
 ${subscriptions.map((s) => `- [${s.id}] ${s.name} (${s.category}): $${s.cost}/${s.billingCycle}`).join("\n")}
 
-For each subscription, respond with a JSON array. Each item must have:
+For each subscription, respond with a JSON array or an object containing a "results" array. Each item must have:
 {
   "subscriptionId": "<id>",
   "goalId": "<most relevant goal id or null>",
@@ -116,7 +123,7 @@ Rules:
 - alignmentScore 30-69 = weak alignment → REVIEW  
 - alignmentScore 0-29 = no alignment → CANCEL
 - Be practical and specific
-- Respond ONLY with the JSON array, no other text (or wrapped in { results: [...] })`;
+- Respond ONLY with the raw valid JSON matching this request structural schema.`;
 }
 
 function parseAnalysisResponse(

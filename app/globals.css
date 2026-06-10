@@ -67,3 +67,13 @@
     opacity: 0.4;
   }
 }
+
+@layer utilities {
+  /* Dynamic blurred canvas styling */
+  .bg-surface-2\/40 {
+    background-color: rgba(25, 29, 39, 0.45);
+  }
+  .bg-surface-3\/50 {
+    background-color: rgba(34, 39, 54, 0.5);
+  }
+}

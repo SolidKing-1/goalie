@@ -1,68 +1,105 @@
 // components/scanning/RarelyUsedList.tsx
 "use client";
 
-import { useRouter } from "next/navigation";
-import { Subscription } from "@/types";
-import { AlertTriangle } from "lucide-react";
+import { useState, useEffect } from "react";
+import { useSubscriptions } from "@/hooks/useSubscriptions";
 import { formatCurrency, toMonthly } from "@/lib/utils";
+import { Subscription } from "@/types";
+import { Button, Empty, Skeleton } from "@/components/ui/index";
+import { AlertTriangle, TrendingDown, CheckCircle } from "lucide-react";
 
-export function RarelyUsedList({ subscriptions }: { subscriptions: Subscription[] }) {
-  const router = useRouter();
+export function RarelyUsedList() {
+  const { subscriptions, loading, update } = useSubscriptions();
+  const [cancelling, setCancelling] = useState<string | null>(null);
+  const [cancelled, setCancelled]   = useState<Set<string>>(new Set());
 
-  const totalWaste = subscriptions.reduce(
-    (sum, s) => sum + toMonthly(s.cost, s.billingCycle),
-    0
+  const rarelyUsed = subscriptions.filter(
+    (s) => s.status === "ACTIVE" && (s.usageLevel === "RARELY" || s.usageLevel === "NEVER")
   );
 
-  async function cancel(id: string) {
-    try {
-      const res = await fetch(`/api/subscriptions/${id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ status: "CANCELLED" }),
-      });
-      if (!res.ok) {
-        const data = await res.json().catch(() => null);
-        alert(data?.error ?? "Failed to cancel subscription");
-        return;
-      }
-      router.refresh();
-    } catch {
-      alert("Network error. Please try again.");
-    }
+  const totalWaste = rarelyUsed.reduce(
+    (sum, s) => sum + toMonthly(s.cost, s.billingCycle), 0
+  );
+
+  async function cancel(sub: Subscription) {
+    setCancelling(sub.id);
+    await update(sub.id, { status: "CANCELLED" });
+    setCancelled((prev) => new Set([...prev, sub.id]));
+    setCancelling(null);
   }
 
-  return (
-    <div className="bg-warning/5 border border-warning/30 rounded-xl p-5">
-      <div className="flex items-start gap-3 mb-4">
-        <AlertTriangle className="w-4 h-4 text-warning mt-0.5" />
+  if (loading) return <Skeleton className="h-32 w-full" />;
+  if (rarelyUsed.length === 0) return (
+    <div className="card">
+      <div className="flex items-center gap-3">
+        <CheckCircle className="w-5 h-5 text-success" />
         <div>
-          <h2 className="text-sm font-medium text-ink">Rarely Used Subscriptions</h2>
-          <p className="text-xs text-muted mt-0.5">
-            You could save <span className="text-warning font-medium">{formatCurrency(totalWaste)}/month</span> by cancelling these
-          </p>
+          <p className="text-sm font-medium text-ink">All subscriptions are being used regularly</p>
+          <p className="text-xs text-muted">Complete the monthly survey to check for wasted spending</p>
         </div>
       </div>
-      <div className="space-y-2">
-        {subscriptions.map((sub) => (
-          <div key={sub.id} className="flex items-center justify-between bg-surface-2 rounded-lg px-4 py-3">
-            <div>
-              <p className="text-sm font-medium text-ink">{sub.name}</p>
-              <p className="text-xs text-warning capitalize">{sub.usageLevel?.toLowerCase()} used</p>
-            </div>
-            <div className="flex items-center gap-3">
-              <span className="text-sm font-mono text-muted">
-                {formatCurrency(toMonthly(sub.cost, sub.billingCycle))}/mo
-              </span>
-              <button
-                onClick={() => cancel(sub.id)}
-                className="text-xs px-3 py-1.5 rounded-lg border border-danger/40 text-danger hover:bg-danger/10 transition-colors"
-              >
-                Cancel
-              </button>
-            </div>
+    </div>
+  );
+
+  return (
+    <div className="bg-warning/5 border border-warning/25 rounded-xl p-5 space-y-4">
+      {/* Header */}
+      <div className="flex items-start justify-between gap-4">
+        <div className="flex items-start gap-3">
+          <AlertTriangle className="w-4 h-4 text-warning mt-0.5 flex-shrink-0" />
+          <div>
+            <h2 className="text-sm font-semibold text-ink">Rarely Used Subscriptions</h2>
+            <p className="text-xs text-muted mt-0.5">
+              Cancelling these could save you{" "}
+              <span className="text-warning font-mono font-semibold">{formatCurrency(totalWaste)}/month</span>
+              {" "}(
+              <span className="text-warning font-mono">{formatCurrency(totalWaste * 12)}/year</span>
+              )
+            </p>
           </div>
-        ))}
+        </div>
+        <div className="flex items-center gap-1.5 text-warning">
+          <TrendingDown className="w-4 h-4" />
+          <span className="text-xs font-mono font-bold">{rarelyUsed.length} subs</span>
+        </div>
+      </div>
+
+      {/* List */}
+      <div className="space-y-2">
+        {rarelyUsed.map((sub) => {
+          const monthly = toMonthly(sub.cost, sub.billingCycle);
+          const isCancelled = cancelled.has(sub.id);
+          return (
+            <div key={sub.id} className={`flex items-center justify-between bg-surface-2 rounded-xl px-4 py-3 transition-all ${isCancelled ? "opacity-50" : ""}`}>
+              <div className="flex items-center gap-3">
+                <div className="space-y-0.5">
+                  <p className="text-sm font-medium text-ink">{sub.name}</p>
+                  <p className={`text-xs font-medium capitalize ${sub.usageLevel === "NEVER" ? "text-danger" : "text-warning"}`}>
+                    {sub.usageLevel?.toLowerCase()} used
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-center gap-4">
+                <div className="text-right">
+                  <p className="text-sm font-mono text-ink">{formatCurrency(monthly)}/mo</p>
+                  <p className="text-xs text-muted">{formatCurrency(monthly * 12)}/yr</p>
+                </div>
+                {isCancelled ? (
+                  <span className="text-xs text-success font-medium">Cancelled ✓</span>
+                ) : (
+                  <Button
+                    variant="danger"
+                    size="sm"
+                    loading={cancelling === sub.id}
+                    onClick={() => cancel(sub)}
+                  >
+                    Cancel
+                  </Button>
+                )}
+              </div>
+            </div>
+          );
+        })}
       </div>
     </div>
   );

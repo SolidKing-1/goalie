@@ -37,14 +37,14 @@ export default async function ScanningPage() {
       )}
 
       <div className="card">
-        <div className="flex items-center justify-between mb-5">
+        {/* <div className="flex items-center justify-between mb-5">
           <h2 className="text-sm font-medium text-ink">
             Monthly Survey — {MONTH_NAMES[month - 1]} {year}
           </h2>
           {survey && (
             <span className="text-xs text-success bg-success/10 px-2 py-1 rounded-md">✓ Completed</span>
           )}
-        </div>
+        </div> */}
         <UsageSurvey
           subscriptions={subscriptions as any}
           existingSurvey={survey as any}

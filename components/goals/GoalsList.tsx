@@ -2,149 +2,232 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useGoals } from "@/hooks/useGoals";
 import { Goal, GoalCategory } from "@/types";
-import { Plus, Target, Trash2 } from "lucide-react";
+import {
+  Button,
+  Empty,
+  Skeleton,
+  Modal,
+  Input,
+  Select,
+  Badge,
+} from "@/components/ui/index";
 import { cn } from "@/lib/utils";
-import { GOAL_CATEGORIES } from "@/lib/constants";
+import { Plus, Trash2, Target, Calendar } from "lucide-react";
 
-const CATEGORY_ICONS: Record<GoalCategory, string> = {
-  CAREER: "💼", EDUCATION: "📚", HEALTH: "💪",
-  FINANCE: "💰", LIFESTYLE: "✨", OTHER: "🎯",
+const CATEGORY_META: Record<GoalCategory, { emoji: string; label: string }> = {
+  CAREER: { emoji: "💼", label: "Career" },
+  EDUCATION: { emoji: "📚", label: "Education" },
+  HEALTH: { emoji: "💪", label: "Health" },
+  FINANCE: { emoji: "💰", label: "Finance" },
+  LIFESTYLE: { emoji: "✨", label: "Lifestyle" },
+  OTHER: { emoji: "🎯", label: "Other" },
 };
 
-export function GoalsList({ goals }: { goals: Goal[] }) {
-  const router = useRouter();
-  const [showForm, setShowForm] = useState(false);
-  const [form, setForm] = useState({ title: "", description: "", category: "CAREER" as GoalCategory });
-  const [saving, setSaving] = useState(false);
+const GOAL_CATEGORIES = (Object.keys(CATEGORY_META) as GoalCategory[]).map(
+  (v) => ({
+    value: v,
+    label: `${CATEGORY_META[v].emoji} ${CATEGORY_META[v].label}`,
+  }),
+);
 
+const STATUS_BADGE: Record<string, "success" | "warning" | "neutral"> = {
+  ACTIVE: "success",
+  ACHIEVED: "info" as any,
+  PAUSED: "warning",
+};
+
+function AddGoalModal({
+  onClose,
+  onCreate,
+}: {
+  onClose: () => void;
+  onCreate: (d: any) => Promise<void>;
+}) {
+  const [form, setForm] = useState({
+    title: "",
+    description: "",
+    category: "CAREER" as GoalCategory,
+    targetDate: "",
+  });
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
-  async function createGoal(e: React.FormEvent) {
+  async function submit(e: React.FormEvent) {
     e.preventDefault();
-    setSaving(true);
-    setError("");
+    if (!form.title.trim()) return setError("Title is required");
+    setLoading(true);
     try {
-      const res = await fetch("/api/goals", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(form),
+      await onCreate({
+        ...form,
+        targetDate: form.targetDate
+          ? new Date(form.targetDate).toISOString()
+          : undefined,
       });
-      if (!res.ok) {
-        const data = await res.json().catch(() => null);
-        setError(data?.error ?? "Failed to create goal");
-        return;
-      }
-      router.refresh();
-      setShowForm(false);
-      setForm({ title: "", description: "", category: "CAREER" });
+      onClose();
     } catch {
-      setError("Network error. Please try again.");
+      setError("Failed to create goal");
     } finally {
-      setSaving(false);
-    }
-  }
-
-  async function deleteGoal(id: string) {
-    if (!confirm("Delete this goal?")) return;
-    try {
-      const res = await fetch(`/api/goals/${id}`, { method: "DELETE" });
-      if (!res.ok) {
-        const data = await res.json().catch(() => null);
-        alert(data?.error ?? "Failed to delete goal");
-        return;
-      }
-      router.refresh();
-    } catch {
-      alert("Network error. Please try again.");
+      setLoading(false);
     }
   }
 
   return (
+    <Modal title="Add Goal" onClose={onClose}>
+      <form onSubmit={submit} className="space-y-4">
+        <Input
+          label="Goal title *"
+          value={form.title}
+          onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))}
+          placeholder="e.g. Get a software engineering internship"
+        />
+        <Select
+          label="Category"
+          value={form.category}
+          onChange={(e) =>
+            setForm((f) => ({ ...f, category: e.target.value as GoalCategory }))
+          }
+          options={GOAL_CATEGORIES}
+        />
+        <div className="space-y-1.5">
+          <label className="text-xs font-medium text-muted">
+            Description (optional)
+          </label>
+          <textarea
+            value={form.description}
+            onChange={(e) =>
+              setForm((f) => ({ ...f, description: e.target.value }))
+            }
+            rows={2}
+            placeholder="What does achieving this look like?"
+            className="w-full bg-surface-3 border border-border rounded-lg px-3 py-2 text-sm text-ink outline-none focus:border-accent transition-colors placeholder:text-muted/50 resize-none"
+          />
+        </div>
+        <Input
+          label="Target date (optional)"
+          type="date"
+          value={form.targetDate}
+          onChange={(e) =>
+            setForm((f) => ({ ...f, targetDate: e.target.value }))
+          }
+        />
+        {error && <p className="text-xs text-danger">{error}</p>}
+        <div className="flex gap-3 pt-1">
+          <Button
+            variant="secondary"
+            type="button"
+            onClick={onClose}
+            className="flex-1"
+          >
+            Cancel
+          </Button>
+          <Button type="submit" loading={loading} className="flex-1">
+            Add Goal
+          </Button>
+        </div>
+      </form>
+    </Modal>
+  );
+}
+
+export function GoalsList() {
+  const { goals, loading, create, remove } = useGoals();
+  const [showForm, setShowForm] = useState(false);
+
+  if (loading)
+    return (
+      <div className="space-y-3">
+        {[...Array(3)].map((_, i) => (
+          <Skeleton key={i} className="h-24" />
+        ))}
+      </div>
+    );
+
+  return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h2 className="text-sm font-medium text-muted">Your Goals</h2>
-        <button
-          onClick={() => setShowForm(!showForm)}
-          className="flex items-center gap-1.5 text-xs text-accent hover:text-accent-dim transition-colors"
-        >
-          <Plus className="w-3.5 h-3.5" />
-          Add Goal
-        </button>
+        <h2 className="text-sm font-medium text-muted uppercase tracking-wider">
+          Your Goals
+        </h2>
+        <Button size="sm" onClick={() => setShowForm(true)}>
+          <Plus className="w-3.5 h-3.5" /> Add
+        </Button>
       </div>
 
-      {showForm && (
-        <form onSubmit={createGoal} className="card space-y-3 animate-slide-up">
-          <input
-            type="text"
-            placeholder="Goal title (e.g. Get an internship)"
-            value={form.title}
-            onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))}
-            required
-            className="w-full bg-surface-3 border border-border rounded-lg px-3 py-2 text-sm text-ink outline-none focus:border-accent transition-colors"
+      {goals.length === 0 ? (
+        <div className="card">
+          <Empty
+            icon={Target}
+            title="No goals yet"
+            description="Add a goal to get AI-powered subscription recommendations"
+            action={
+              <Button size="sm" onClick={() => setShowForm(true)}>
+                <Plus className="w-3.5 h-3.5" /> Add Goal
+              </Button>
+            }
           />
-          <select
-            aria-label="Goal category"
-            value={form.category}
-            onChange={(e) => setForm((f) => ({ ...f, category: e.target.value as GoalCategory }))}
-            className="w-full bg-surface-3 border border-border rounded-lg px-3 py-2 text-sm text-ink outline-none focus:border-accent"
-          >
-            {GOAL_CATEGORIES.map((c) => (
-              <option key={c} value={c}>{CATEGORY_ICONS[c]} {c.charAt(0) + c.slice(1).toLowerCase()}</option>
-            ))}
-          </select>
-          <textarea
-            placeholder="Description (optional)"
-            value={form.description}
-            onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
-            rows={2}
-            className="w-full bg-surface-3 border border-border rounded-lg px-3 py-2 text-sm text-ink outline-none focus:border-accent transition-colors resize-none"
-          />
-          {error && (
-            <p className="text-xs text-danger bg-danger/10 px-3 py-2 rounded-lg">{typeof error === "object" ? JSON.stringify(error) : error}</p>
-          )}
-          <div className="flex gap-2">
-            <button type="button" onClick={() => setShowForm(false)} className="flex-1 py-2 rounded-lg border border-border text-sm text-muted hover:text-ink transition-all">Cancel</button>
-            <button type="submit" disabled={saving} className="flex-1 py-2 rounded-lg bg-accent text-surface text-sm font-medium hover:bg-accent-dim transition-colors disabled:opacity-50">
-              {saving ? "Adding…" : "Add Goal"}
-            </button>
-          </div>
-        </form>
+        </div>
+      ) : (
+        /* ── ADJUSTED SPACING CONTAINER ── */
+        <div className="space-y-4">
+          {goals.map((goal) => {
+            const meta = CATEGORY_META[goal.category];
+            const subCount = goal.subscriptions?.length ?? 0;
+            return (
+              <div
+                key={goal.id}
+                className="card p-4 flex items-start justify-between gap-3 group hover:border-accent/30 transition-colors"
+              >
+                <div className="flex gap-3">
+                  <span className="text-2xl mt-0.5">{meta.emoji}</span>
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <p className="text-sm font-medium text-ink">
+                        {goal.title}
+                      </p>
+                      <Badge
+                        label={goal.status.toLowerCase()}
+                        variant={STATUS_BADGE[goal.status]}
+                      />
+                    </div>
+                    {goal.description && (
+                      <p className="text-xs text-muted">{goal.description}</p>
+                    )}
+                    <div className="flex items-center gap-3 mt-1">
+                      <span className="text-xs text-muted">{meta.label}</span>
+                      {goal.targetDate && (
+                        <span className="flex items-center gap-1 text-xs text-muted">
+                          <Calendar className="w-3 h-3" />
+                          {new Date(goal.targetDate).toLocaleDateString(
+                            "en-US",
+                            { month: "short", year: "numeric" },
+                          )}
+                        </span>
+                      )}
+                      {subCount > 0 && (
+                        <span className="text-xs text-accent">
+                          {subCount} sub{subCount !== 1 ? "s" : ""} linked
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+                <button
+                  onClick={() => remove(goal.id)}
+                  className="opacity-0 group-hover:opacity-100 text-muted hover:text-danger transition-all p-1 rounded flex-shrink-0"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            );
+          })}
+        </div>
       )}
 
-      <div className="space-y-2">
-        {goals.map((goal) => (
-          <div key={goal.id} className="card p-4 flex items-start justify-between gap-3">
-            <div className="flex items-start gap-3">
-              <span className="text-xl">{CATEGORY_ICONS[goal.category]}</span>
-              <div>
-                <p className="text-sm font-medium text-ink">{goal.title}</p>
-                {goal.description && (
-                  <p className="text-xs text-muted mt-0.5">{goal.description}</p>
-                )}
-                <p className="text-xs text-muted mt-1">
-                  {(goal.subscriptions?.length ?? 0)} subscription{goal.subscriptions?.length !== 1 ? "s" : ""} linked
-                </p>
-              </div>
-            </div>
-            <button
-              onClick={() => deleteGoal(goal.id)}
-              title="Delete goal"
-              aria-label="Delete goal"
-              className="text-muted hover:text-danger transition-colors flex-shrink-0"
-            >
-              <Trash2 className="w-3.5 h-3.5" />
-            </button>
-          </div>
-        ))}
-        {!goals.length && (
-          <div className="card p-8 text-center">
-            <Target className="w-8 h-8 text-muted mx-auto mb-3" />
-            <p className="text-sm text-muted">Add your first goal to get AI-powered subscription recommendations</p>
-          </div>
-        )}
-      </div>
+      {showForm && (
+        <AddGoalModal onClose={() => setShowForm(false)} onCreate={create} />
+      )}
     </div>
   );
 }
