@@ -221,3 +221,4 @@ The app uses a **deep navy + electric lime** palette defined entirely in CSS var
 | `--color-muted` | `#7a8299` | Secondary text |
 
 Fonts: **DM Sans** (UI) + **DM Mono** (numbers/code)
+ 
