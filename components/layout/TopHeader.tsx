@@ -7,11 +7,19 @@ export async function TopHeader() {
   const session = await auth();
   if (!session?.user?.id) return null;
 
-  const notifications = await prisma.notification.findMany({
+  const rawNotifications = await prisma.notification.findMany({
     where: { userId: session.user.id },
     orderBy: { createdAt: "desc" },
     take: 10,
   });
+
+  // Transform 'null' database fields into 'undefined' to satisfy the frontend component types
+  const notifications = rawNotifications.map((n) => ({
+    ...n,
+    subscriptionId: n.subscriptionId ?? undefined,
+    scheduledFor: n.scheduledFor ?? undefined, // Did the same for these just in case they are also optional types!
+    sentAt: n.sentAt ?? undefined,
+  }));
 
   const unreadCount = notifications.filter((n) => !n.isRead).length;
 

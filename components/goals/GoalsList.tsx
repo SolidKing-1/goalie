@@ -214,7 +214,9 @@ export function GoalsList() {
                   </div>
                 </div>
                 <button
+                  type="button" // Fixes: Button type attribute not set
                   onClick={() => remove(goal.id)}
+                  aria-label="Remove goal" // Fixes: Buttons must have discernible text
                   className="opacity-0 group-hover:opacity-100 text-muted hover:text-danger transition-all p-1 rounded flex-shrink-0"
                 >
                   <Trash2 className="w-3.5 h-3.5" />

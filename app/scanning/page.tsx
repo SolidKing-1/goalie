@@ -33,7 +33,7 @@ export default async function ScanningPage() {
       </div>
 
       {rarelyUsed.length > 0 && (
-        <RarelyUsedList subscriptions={rarelyUsed as any} />
+        <RarelyUsedList />
       )}
 
       <div className="card">
@@ -45,10 +45,7 @@ export default async function ScanningPage() {
             <span className="text-xs text-success bg-success/10 px-2 py-1 rounded-md">✓ Completed</span>
           )}
         </div> */}
-        <UsageSurvey
-          subscriptions={subscriptions as any}
-          existingSurvey={survey as any}
-        />
+        <UsageSurvey/>
       </div>
     </div>
   );

@@ -30,8 +30,7 @@ export default async function GoalsPage() {
           <GoalsList/>
         </div>
         <div className="col-span-3">
-          <GoalAlignmentPanel
-          />
+          <GoalAlignmentPanel/>
         </div>
       </div>
     </div>

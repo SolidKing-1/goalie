@@ -26,8 +26,7 @@ export default async function BudgetingPage() {
           Track your monthly subscription spending against your budget
         </p>
       </div>
-      <BudgetManager
-      />
+      <BudgetManager/>
     </div>
   );
 }

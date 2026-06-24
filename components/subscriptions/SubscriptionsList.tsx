@@ -312,20 +312,28 @@ export function SubscriptionsList({
                       <div className="flex items-center gap-2">
                         {(sub.usageLevel === "RARELY" ||
                           sub.usageLevel === "NEVER") && (
-                          <AlertCircle
-                            className="w-3.5 h-3.5 text-warning"
+                          <span
                             title="Rarely used"
-                          />
+                            className="flex items-center"
+                          >
+                            <AlertCircle className="w-3.5 h-3.5 text-warning" />
+                          </span>
                         )}
+
                         <button
+                          type="button"
                           onClick={() => setEditing(sub)}
+                          aria-label="Edit item"
                           className="p-1 text-muted hover:text-ink rounded transition-colors"
                         >
                           <Pencil className="w-3.5 h-3.5" />
                         </button>
+
                         <button
+                          type="button"
                           onClick={() => handleDelete(sub.id)}
                           disabled={deleting === sub.id}
+                          aria-label="Delete item"
                           className="p-1 text-muted hover:text-danger rounded transition-colors"
                         >
                           <Trash2 className="w-3.5 h-3.5" />

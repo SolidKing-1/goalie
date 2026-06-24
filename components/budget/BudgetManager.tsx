@@ -107,7 +107,6 @@ export function BudgetManager() {
 
   return (
     <div className="space-y-6">
-
       <div className="grid grid-cols-3 gap-6">
         {/* ── Settings card ── */}
         <div className="card space-y-5">
@@ -133,6 +132,7 @@ export function BudgetManager() {
               </div>
               <input
                 type="range"
+                aria-label="Alert percentage threshold" 
                 min="50"
                 max="99"
                 step="5"
