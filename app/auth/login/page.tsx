@@ -558,7 +558,7 @@ export default function LoginPage() {
     visible: {
       opacity: 1,
       y: 0,
-      transition: { duration: 0.38, ease: "easeOut" },
+      transition: { duration: 0.38, ease: "easeOut" as const },
     },
   };
 
