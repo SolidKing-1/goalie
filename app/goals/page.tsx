@@ -27,12 +27,10 @@ export default async function GoalsPage() {
       </div>
       <div className="grid grid-cols-5 gap-6">
         <div className="col-span-2">
-          <GoalsList goals={goals as any} />
+          <GoalsList/>
         </div>
         <div className="col-span-3">
           <GoalAlignmentPanel
-            goals={goals as any}
-            subscriptions={subscriptions as any}
           />
         </div>
       </div>
