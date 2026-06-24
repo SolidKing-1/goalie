@@ -27,9 +27,6 @@ export default async function BudgetingPage() {
         </p>
       </div>
       <BudgetManager
-        budget={budget as any}
-        subscriptions={subscriptions as any}
-        totalMonthly={totalMonthly}
       />
     </div>
   );
